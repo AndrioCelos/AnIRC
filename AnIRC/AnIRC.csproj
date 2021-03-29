@@ -8,6 +8,7 @@
     <Authors>Andrea Giannone</Authors>
     <Copyright>© 2015-2021 Andrea Giannone</Copyright>
     <PackageLicenseFile>license.md</PackageLicenseFile>
+    <LangVersion>preview</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>

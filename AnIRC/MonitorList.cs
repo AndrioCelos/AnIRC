@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace AnIRC {
 	/// <summary>Represents a MONITOR or WATCH list, and provides methods to modify the list.</summary>
@@ -22,7 +21,7 @@ namespace AnIRC {
 			this.nicknames = new HashSet<string>(client.CaseMappingComparer);
 		}
 
-		internal void setCaseMapping() {
+		internal void SetCaseMapping() {
 			var oldNicknames = this.nicknames;
 			this.nicknames = new HashSet<string>(this.Client.CaseMappingComparer);
 			foreach (var nickname in oldNicknames) this.nicknames.Add(nickname);
@@ -39,10 +38,10 @@ namespace AnIRC {
 			if (this.Client.State < IrcClientState.ReceivingServerInfo) throw new InvalidOperationException("The client must be registered to perform this operation.");
 			if (!this.Client.Extensions.SupportsMonitor) throw new NotSupportedException("This network does not support a monitor list.");
 			if (this.Contains(nickname)) return false;
-			checkNickname(nickname);
+			CheckNickname(nickname);
 			if (this.Client.Extensions.ContainsKey("MONITOR")) this.Client.Send("MONITOR + " + nickname);
 			else this.Client.Send("WATCH +" + nickname);
-			this.addInternal(nickname);
+			this.AddInternal(nickname);
 			return true;
 		}
 		void ICollection<string>.Add(string nickname) => this.Add(nickname);
@@ -50,25 +49,25 @@ namespace AnIRC {
 		public void AddRange(IEnumerable<string> nicknames) {
 			if (this.Client.State < IrcClientState.ReceivingServerInfo) throw new InvalidOperationException("The client must be registered to perform this operation.");
 			if (!this.Client.Extensions.SupportsMonitor) throw new NotSupportedException("This network does not support a monitor list.");
-			this.change('+', nicknames.Where(n => !this.Contains(n)), this.addInternal);
+			this.Change('+', nicknames.Where(n => !this.Contains(n)), this.AddInternal);
 		}
 		/// <summary>Sends a command to remove the specified nickname from the list.</summary>
 		/// <returns>True if the nickname was removed; false if it was not in the list.</returns>
 		public bool Remove(string nickname) {
 			if (this.Client.State < IrcClientState.ReceivingServerInfo) throw new InvalidOperationException("The client must be registered to perform this operation.");
 			if (!this.Client.Extensions.SupportsMonitor) throw new NotSupportedException("This network does not support a monitor list.");
-			checkNickname(nickname);
+			CheckNickname(nickname);
 			if (!this.Contains(nickname)) return false;
 			if (this.Client.Extensions.ContainsKey("MONITOR")) this.Client.Send("MONITOR - " + nickname);
 			else this.Client.Send("WATCH -" + nickname);
-			this.removeInternal(nickname);
+			this.RemoveInternal(nickname);
 			return true;
 		}
 		/// <summary>Sends a command to remove the specified nicknames from the list.</summary>
 		public void RemoveRange(IEnumerable<string> nicknames) {
 			if (this.Client.State < IrcClientState.ReceivingServerInfo) throw new InvalidOperationException("The client must be registered to perform this operation.");
 			if (!this.Client.Extensions.SupportsMonitor) throw new NotSupportedException("This network does not support a monitor list.");
-			this.change('-', nicknames.Where(n => this.Contains(n)), this.removeInternal);
+			this.Change('-', nicknames.Where(n => this.Contains(n)), this.RemoveInternal);
 		}
 		/// <summary>Sends a command to clear the list.</summary>
 		public void Clear() {
@@ -76,15 +75,15 @@ namespace AnIRC {
 			if (!this.Client.Extensions.SupportsMonitor) throw new NotSupportedException("This network does not support a monitor list.");
 			if (this.Client.Extensions.ContainsKey("MONITOR")) this.Client.Send("MONITOR C");
 			else this.Client.Send("WATCH C");
-			this.clearInternal();
+			this.ClearInternal();
 		}
 
-		internal void addInternal(string nickname) {
+		internal void AddInternal(string nickname) {
 			this.nicknames.Add(nickname);
 			if (this.Client.Users.TryGetValue(nickname, out var user))
 				user.Monitoring = true;
 		}
-		internal void removeInternal(string nickname) {
+		internal void RemoveInternal(string nickname) {
 			this.nicknames.Remove(nickname);
 			if (this.Client.Users.TryGetValue(nickname, out var user)) {
 				user.Monitoring = false;
@@ -92,7 +91,7 @@ namespace AnIRC {
 					this.Client.OnUserDisappeared(new IrcUserEventArgs(user));
 			}
 		}
-		internal void clearInternal() {
+		internal void ClearInternal() {
 			foreach (var nickname in this.nicknames) {
 				if (this.Client.Users.TryGetValue(nickname, out var user)) {
 					user.Monitoring = false;
@@ -103,7 +102,7 @@ namespace AnIRC {
 			this.nicknames.Clear();
 		}
 
-		private void change(char direction, IEnumerable<string> nicknames, Action<string> action) {
+		private void Change(char direction, IEnumerable<string> nicknames, Action<string> action) {
 			bool monitor = this.Client.Extensions.ContainsKey("MONITOR");
 			bool end = false;
 			var enumerator = nicknames.GetEnumerator();
@@ -119,7 +118,7 @@ namespace AnIRC {
 						break;
 					}
 					var nickname = enumerator.Current;
-					checkNickname(nickname);
+					CheckNickname(nickname);
 					if (any) {
 						if (commandBuilder.Length + 1 + nickname.Length > 510) break;
 						if (monitor) commandBuilder.Append(',');
@@ -136,7 +135,7 @@ namespace AnIRC {
 			}
 		}
 
-		private static void checkNickname(string nickname) {
+		private static void CheckNickname(string nickname) {
 			if (nickname.Any(c => c is ' ' or ',' or '\r' or '\n'))
 				throw new ArgumentException("Nickname contains invalid characters.", nameof(nickname));
 		}

@@ -1,5 +1,4 @@
-﻿using System;
-namespace AnIRC {
+﻿namespace AnIRC {
 	public enum WhoxField {
 		Unknown,
 		QueryType,
