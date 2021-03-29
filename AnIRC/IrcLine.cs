@@ -26,23 +26,20 @@ namespace AnIRC {
             this.Tags = tags;
             this.Prefix = prefix;
             this.Message = command;
-            if (parameters == null) this.Parameters = new string[0];
-            else this.Parameters = parameters.ToArray();
-            this.HasTrail = hasTrail;
+            this.Parameters = parameters?.ToArray() ?? Array.Empty<string>();
+			this.HasTrail = hasTrail;
         }
 
-        public static IrcLine Parse(string line) {
-            return IrcLine.Parse(line, true);
-        }
-        public static IrcLine Parse(string line, bool allowTags) {
-            if (line == null) throw new ArgumentNullException("line");
+		public static IrcLine Parse(string line) => IrcLine.Parse(line, true);
+		public static IrcLine Parse(string line, bool allowTags) {
+            if (line == null) throw new ArgumentNullException(nameof(line));
             if (line.Length == 0) return new IrcLine(null, null, null, null, false);
 
             Dictionary<string, string> tags = null; string prefix = null, command = null;
             var parameters = new List<string>();
             bool hasTrail = false;
 
-            StringBuilder builder = new StringBuilder(32);
+            var builder = new StringBuilder(32);
             int i = 0; char c = line[0];
 
             if (allowTags && c == '@') {
@@ -54,7 +51,7 @@ namespace AnIRC {
 					builder.Clear();
 					for ( ; i < line.Length; ++i) {
                         c = line[i];
-                        if (c == '=' || c == ';' || c == ' ') break;
+                        if (c is '=' or ';' or ' ') break;
                         builder.Append(c);
                     }
                     tag = builder.ToString();
@@ -63,7 +60,7 @@ namespace AnIRC {
                         builder.Clear();
                         for (++i; i < line.Length; ++i) {
                             c = line[i];
-                            if (c == ';' || c == ' ') break;
+                            if (c is ';' or ' ') break;
                             if (c == '\\') {  // Escape sequence
                                 if (++i == line.Length) {
                                     builder.Append('\\');
@@ -125,7 +122,7 @@ namespace AnIRC {
                     while (i < line.Length) {
                         if (line[i] == ':') {  // Trail
                             hasTrail = true;
-                            parameters.Add(line.Substring(i + 1));
+                            parameters.Add(line[(i + 1)..]);
                             break;
                         }
 
@@ -146,7 +143,7 @@ namespace AnIRC {
 
 		/// <summary>Returns a new string from the specified string with certain characters escaped, for use as an IRCv3 tag value.</summary>
         public static string EscapeTag(string value) {
-            StringBuilder builder = new StringBuilder(value.Length + value.Length / 4);
+            var builder = new StringBuilder(value.Length + value.Length / 4);
             foreach (char c in value) {
                 switch (c) {
                     case ';':
@@ -167,14 +164,12 @@ namespace AnIRC {
         }
 
 		/// <summary>Returns a new string from the specified string with IRCv3 tag escape codes parsed.</summary>
-		public static string UnescapeTag(string value) {
-            return UnescapeTag(value, false);
-        }
+		public static string UnescapeTag(string value) => UnescapeTag(value, false);
 		/// <summary>Returns a new string from the specified string with IRCv3 tag escape codes parsed.</summary>
 		/// <param name="strict">If true, this method will throw an exception if an invalid escape sequence is encountered instead of copying it verbatim.</param>
 		/// <exception cref="FormatException"><paramref name="strict"/> is true, and there is an invalid escape sequence in <paramref name="value"/>.</exception>
 		public static string UnescapeTag(string value, bool strict) {
-            StringBuilder builder = new StringBuilder(value.Length);
+            var builder = new StringBuilder(value.Length);
 
             for (int i = 0; i < value.Length; ++i) {
                 char c = value[i];
@@ -209,29 +204,29 @@ namespace AnIRC {
 
 		/// <summary>Returns the string representation of this <see cref="IrcLine"/>, as specified by the IRC protocol.</summary>
         public override string ToString() {
-            StringBuilder builder = new StringBuilder(128);
+            var builder = new StringBuilder(128);
             if (this.Tags != null) {
-                builder.Append("@");
+                builder.Append('@');
                 foreach (var tag in this.Tags) {
-                    if (builder.Length != 1) builder.Append(";");
+                    if (builder.Length != 1) builder.Append(';');
                     builder.Append(tag.Key);
                     if (tag.Value != null) {
-                        builder.Append("=");
+                        builder.Append('=');
                         builder.Append(EscapeTag(tag.Value));
                     }
                 }
-                builder.Append(" ");
+                builder.Append(' ');
             }
             if (this.Prefix != null) {
-                builder.Append(":");
+                builder.Append(':');
                 builder.Append(this.Prefix);
-                builder.Append(" ");
+                builder.Append(' ');
             }
             builder.Append(this.Message);
 
             for (int i = 0; i < this.Parameters.Length; ++i) {
-                builder.Append(" ");
-                if (this.HasTrail && i == this.Parameters.Length - 1) builder.Append(":");
+                builder.Append(' ');
+                if (this.HasTrail && i == this.Parameters.Length - 1) builder.Append(':');
                 builder.Append(this.Parameters[i]);
             }
 

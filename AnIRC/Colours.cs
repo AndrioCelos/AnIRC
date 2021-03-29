@@ -1,5 +1,3 @@
-#pragma warning disable 1591  // Missing XML documentation
-
 using System;
 
 namespace AnIRC {
@@ -25,18 +23,18 @@ namespace AnIRC {
         public const string Magenta       = "\u000313";
         public const string DarkGray      = "\u000314";
         public const string Gray          = "\u000315";
-        public const string Bold          = "\u0002";
-        public const string Italic        = "\u001C";
-        public const string Underline     = "\u001F";
-        public const string Strikethrough = "\u0013";
+        public const char Bold          = '\u0002';
+        public const char Italic        = '\u001C';
+        public const char Underline     = '\u001F';
+        public const char Strikethrough = '\u0013';
         /// <summary>The CTCP code.</summary>
-        public const string CTCP          = "\u0001";
+        public const char CTCP          = '\u0001';
         /// <summary>The clear code.</summary>
-        public const string ClearFormat   = "\u000F";
+        public const char ClearFormat   = '\u000F';
         /// <summary>The clear code.</summary>
-        public const string Reset         = "\u000F";
+        public const char Reset         = '\u000F';
         /// <summary>The reverse video code.</summary>
-        public const string Reverse       = "\u0016";
+        public const char Reverse       = '\u0016';
 
         private static readonly int[,] defaultColours = new[,] { {3,99}, {4,99}, {6,99}, {8,99}, {9,99}, {10,99}, {11,99}, {12,99}, {13,99} };
 
@@ -58,8 +56,7 @@ namespace AnIRC {
         /// <returns>The full colour code for the given string.</returns>
         public static string NicknameColour(string nickname, int[,] colours) {
             var result = NicknameColourIndex(nickname, colours);
-            if (result[1] >= 0 && result[1] < 99) return "\u0003" + result[0] + "," + result[1].ToString("00");
-            else return "\u0003" + result[0].ToString("00");
+			return result[1] is >= 0 and < 99 ? "\u0003" + result[0] + "," + result[1].ToString("00") : "\u0003" + result[0].ToString("00");
 		}
         /// <summary>Returns a colour index that can be used to colour the given string using HexChat's default list of colours.</summary>
         /// <param name="nickname">The string to colour.</param>
@@ -78,9 +75,9 @@ namespace AnIRC {
         /// </param>
         /// <returns>An array with two elements, consisting of the foreground and background colour for the given string, in that order.</returns>
         public static int[] NicknameColourIndex(string nickname, int[,] colours) {
-            if (colours == null) throw new ArgumentNullException("colours");
-            if (colours.Length == 0) throw new ArgumentException("colours must contain at least one element.", "colours");
-            if (colours.GetUpperBound(1) != 1) throw new ArgumentException("The second dimension of the array must have an upper bound of 1.", "colours");
+            if (colours == null) throw new ArgumentNullException(nameof(colours));
+            if (colours.Length == 0) throw new ArgumentException(nameof(colours) + " must contain at least one element.", nameof(colours));
+            if (colours.GetUpperBound(1) != 1) throw new ArgumentException("The second dimension of the array must have an upper bound of 1.", nameof(colours));
 
             int digest = 0;
             for (int i = 0; i < nickname.Length; ++i)

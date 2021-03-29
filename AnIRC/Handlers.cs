@@ -17,14 +17,13 @@ namespace AnIRC {
         /// <summary>The reply or numeric that this procedure should handle.</summary>
         public string Reply { get; }
 
-        /// <summary>Initializes a new <see cref="IrcMessageHandlerAttribute"/> for the specified reply.</summary>
-        /// <param name="reply">The reply or numeric that should be handled.</param>
-        public IrcMessageHandlerAttribute(string reply) {
-            this.Reply = reply;
-        }
-    }
+		/// <summary>Initializes a new <see cref="IrcMessageHandlerAttribute"/> for the specified reply.</summary>
+		/// <param name="reply">The reply or numeric that should be handled.</param>
+		public IrcMessageHandlerAttribute(string reply) => this.Reply = reply;
+	}
 
-    internal static class Handlers {
+#pragma warning disable IDE0060  // Remove unused parameter
+	internal static class Handlers {
         [IrcMessageHandler(Replies.RPL_WELCOME)]
         public static void HandleWelcome(IrcClient client, IrcLine line) {  // 001
             client.ServerName = line.Prefix;
@@ -55,7 +54,7 @@ namespace AnIRC {
                 client.SupportedUserModes.Add(c);
 
             // We can only assume that channel modes not defined in RFC 2811 are type D at this point.
-            List<char> modesA = new List<char>(), modesB = new List<char>(), modesC = new List<char>(), modesD = new List<char>(), modesS = new List<char>();
+            List<char> modesA = new(), modesB = new(), modesC = new(), modesD = new(), modesS = new();
             foreach (char c in line.Parameters[4]) {
                 switch (ChannelModes.RFC2811.ModeType(c)) {
                     case 'A': modesA.Add(c); break;
@@ -85,7 +84,7 @@ namespace AnIRC {
                     }
 
                     if (key.StartsWith("-"))
-                        client.Extensions[key.Substring(1)] = null;
+                        client.Extensions[key[1..]] = null;
                     else
                         client.Extensions[key] = value;
                 }
@@ -108,19 +107,17 @@ namespace AnIRC {
             client.OnUserModesGet(new UserModesEventArgs(line.Parameters[1]));
         }
 
-        [IrcMessageHandler(Replies.RPL_AWAY)]
-        public static void HandleAway(IrcClient client, IrcLine line) {  // 301
-            client.OnAwayMessage(new AwayMessageEventArgs(line.Parameters[1], line.Parameters[2]));
-        }
+		[IrcMessageHandler(Replies.RPL_AWAY)]
+		public static void HandleAway(IrcClient client, IrcLine line) => client.OnAwayMessage(new AwayMessageEventArgs(line.Parameters[1], line.Parameters[2]));
 
-        /*
+		/*
         [IRCMessageHandler(Replies.RPL_ISON)]
         public static void HandleIson(IRCClient client, IRCLine line) {  // 303
             // TODO: This can be trapped as part of a notify feature.
         }
         */
 
-        [IrcMessageHandler(Replies.RPL_UNAWAY)]
+		[IrcMessageHandler(Replies.RPL_UNAWAY)]
         public static void HandleUnAway(IrcClient client, IrcLine line) {  // 305
             client.Me.Away = false;
             client.OnAwayCancelled(new AwayEventArgs(line.Parameters[1]));
@@ -128,8 +125,8 @@ namespace AnIRC {
 
         [IrcMessageHandler(Replies.RPL_NOWAWAY)]
         public static void HandleNowAway(IrcClient client, IrcLine line) {  // 306
+            if (!client.Me.Away) client.Me.AwaySince = DateTime.Now;
             client.Me.Away = true;
-            if (client.Me.AwaySince == null) client.Me.AwaySince = DateTime.Now;
             client.OnAwaySet(new AwayEventArgs(line.Parameters[1]));
         }
 
@@ -140,84 +137,67 @@ namespace AnIRC {
             // If only RPL_WHOISREGNICK is sent, the account name is the user's nickname.
             if (client.accountKnown) return;
 
-            IrcUser user;
-            if (client.Users.TryGetValue(line.Parameters[1], out user))
-                user.Account = line.Parameters[1];
-        }
+			if (client.Users.TryGetValue(line.Parameters[1], out var user))
+				user.Account = line.Parameters[1];
+		}
 
-        [IrcMessageHandler("310")]
-        public static void HandleWhoisHelper(IrcClient client, IrcLine line) {  // 310
-            client.OnWhoIsHelperLine(new WhoisOperEventArgs(line.Parameters[1], line.Parameters[2]));
-        }
+		[IrcMessageHandler("310")]
+		public static void HandleWhoisHelper(IrcClient client, IrcLine line) => client.OnWhoIsHelperLine(new WhoisOperEventArgs(line.Parameters[1], line.Parameters[2]));
 
-        [IrcMessageHandler(Replies.RPL_WHOISUSER)]
+		[IrcMessageHandler(Replies.RPL_WHOISUSER)]
         public static void HandleWhoisName(IrcClient client, IrcLine line) {  // 311
-            IrcUser user;
-            if (client.Users.TryGetValue(line.Parameters[1], out user)) {
-                user.Ident = line.Parameters[2];
-                user.Host = line.Parameters[3];
-                user.FullName = line.Parameters[5];
+			if (client.Users.TryGetValue(line.Parameters[1], out var user)) {
+				user.Ident = line.Parameters[2];
+				user.Host = line.Parameters[3];
+				user.FullName = line.Parameters[5];
 
-                // Parse gender codes.
-                var match = Regex.Match(user.FullName, @"^\x03(\d\d?)\x0F");
-                if (match.Success) user.Gender = (Gender) (int.Parse(match.Groups[1].Value) & 3);
-            }
-            client.OnWhoIsNameLine(new WhoisNameEventArgs(line.Parameters[1], line.Parameters[2], line.Parameters[3], line.Parameters[5]));
+				// Parse gender codes.
+				var match = Regex.Match(user.FullName, @"^\x03(\d\d?)\x0F");
+				if (match.Success) user.Gender = (Gender) (int.Parse(match.Groups[1].Value) & 3);
+			}
+			client.OnWhoIsNameLine(new WhoisNameEventArgs(line.Parameters[1], line.Parameters[2], line.Parameters[3], line.Parameters[5]));
         }
 
-        [IrcMessageHandler(Replies.RPL_WHOISSERVER)]
-        public static void HandleWhoisServer(IrcClient client, IrcLine line) {  // 312
-            client.OnWhoIsServerLine(new WhoisServerEventArgs(line.Parameters[1], line.Parameters[2], line.Parameters[3]));
-        }
+		[IrcMessageHandler(Replies.RPL_WHOISSERVER)]
+		public static void HandleWhoisServer(IrcClient client, IrcLine line) => client.OnWhoIsServerLine(new WhoisServerEventArgs(line.Parameters[1], line.Parameters[2], line.Parameters[3]));
 
-        [IrcMessageHandler(Replies.RPL_WHOISOPERATOR)]
+		[IrcMessageHandler(Replies.RPL_WHOISOPERATOR)]
         public static void HandleWhoisOper(IrcClient client, IrcLine line) {  // 313
-            IrcUser user;
-            if (client.Users.TryGetValue(line.Parameters[1], out user))
-                user.Oper = true;
+			if (client.Users.TryGetValue(line.Parameters[1], out var user))
+				user.Oper = true;
 
-            client.OnWhoIsOperLine(new WhoisOperEventArgs(line.Parameters[1], line.Parameters[2]));
+			client.OnWhoIsOperLine(new WhoisOperEventArgs(line.Parameters[1], line.Parameters[2]));
         }
 
-        [IrcMessageHandler(Replies.RPL_WHOWASUSER)]
-        public static void HandleWhowasName(IrcClient client, IrcLine line) {  // 314
-            client.OnWhoWasNameLine(new WhoisNameEventArgs(line.Parameters[1], line.Parameters[2], line.Parameters[3], line.Parameters[5]));
-        }
+		[IrcMessageHandler(Replies.RPL_WHOWASUSER)]
+		public static void HandleWhowasName(IrcClient client, IrcLine line) => client.OnWhoWasNameLine(new WhoisNameEventArgs(line.Parameters[1], line.Parameters[2], line.Parameters[3], line.Parameters[5]));
 
-        /*
+		/*
         [IRCMessageHandler(Replies.RPL_ENDOFWHO)]
         public static void HandleWhoEnd(IRCClient client, IRCLine line) {  // 315
             // TODO: respond to 315 similarly to 366.
         }
         */
 
-        [IrcMessageHandler(Replies.RPL_WHOISIDLE)]
-        public static void HandleWhoisIdle(IrcClient client, IrcLine line) {  // 317
-            client.OnWhoIsIdleLine(new WhoisIdleEventArgs(line.Parameters[1], TimeSpan.FromSeconds(double.Parse(line.Parameters[2])), IrcClient.DecodeUnixTime(double.Parse(line.Parameters[3])), line.Parameters[4]));
-        }
+		[IrcMessageHandler(Replies.RPL_WHOISIDLE)]
+		public static void HandleWhoisIdle(IrcClient client, IrcLine line) => client.OnWhoIsIdleLine(new WhoisIdleEventArgs(line.Parameters[1], TimeSpan.FromSeconds(double.Parse(line.Parameters[2])), IrcClient.DecodeUnixTime(double.Parse(line.Parameters[3])), line.Parameters[4]));
 
-        [IrcMessageHandler(Replies.RPL_ENDOFWHOIS)]
+		[IrcMessageHandler(Replies.RPL_ENDOFWHOIS)]
         public static void HandleWhoisEnd(IrcClient client, IrcLine line) {  // 318
             client.accountKnown = false;
             client.OnWhoIsEnd(new WhoisEndEventArgs(line.Parameters[1], line.Parameters[2]));
         }
 
-        [IrcMessageHandler(Replies.RPL_WHOISCHANNELS)]
-        public static void HandleWhoisChannels(IrcClient client, IrcLine line) {  // 319
-            client.OnWhoIsChannelLine(new WhoisChannelsEventArgs(line.Parameters[1], line.Parameters[2]));
-        }
+		[IrcMessageHandler(Replies.RPL_WHOISCHANNELS)]
+		public static void HandleWhoisChannels(IrcClient client, IrcLine line) => client.OnWhoIsChannelLine(new WhoisChannelsEventArgs(line.Parameters[1], line.Parameters[2]));
 
-        [IrcMessageHandler(Replies.RPL_LIST)]
-        public static void HandleList(IrcClient client, IrcLine line) {  // 322
-            client.OnChannelList(new ChannelListEventArgs(line.Parameters[1], int.Parse(line.Parameters[2]), line.Parameters[3]));
-        }
+		[IrcMessageHandler(Replies.RPL_LIST)]
+		public static void HandleList(IrcClient client, IrcLine line) => client.OnChannelList(new ChannelListEventArgs(line.Parameters[1], int.Parse(line.Parameters[2]), line.Parameters[3]));
 
-        [IrcMessageHandler(Replies.RPL_LISTEND)]
-        public static void HandleListEnd(IrcClient client, IrcLine line) {  // 323
-            client.OnChannelListEnd(new ChannelListEndEventArgs(line.Parameters[1]));
-        }
+		[IrcMessageHandler(Replies.RPL_LISTEND)]
+		public static void HandleListEnd(IrcClient client, IrcLine line) => client.OnChannelListEnd(new ChannelListEndEventArgs(line.Parameters[1]));
 
-        [IrcMessageHandler(Replies.RPL_CHANNELMODEIS)]
+		[IrcMessageHandler(Replies.RPL_CHANNELMODEIS)]
         public static void HandleChannelModes(IrcClient client, IrcLine line) {  // 324
             var user = client.Users.Get(line.Prefix, false);
             var channel = client.Channels.Get(line.Parameters[1]);
@@ -234,10 +214,9 @@ namespace AnIRC {
 
         [IrcMessageHandler(Replies.RPL_WHOISACCOUNT)]
         public static void HandleWhoisAccount(IrcClient client, IrcLine line) {  // 330
-            IrcUser user;
-            if (client.Users.TryGetValue(line.Parameters[1], out user))
-                user.Account = line.Parameters[2];
-            client.accountKnown = true;
+			if (client.Users.TryGetValue(line.Parameters[1], out var user))
+				user.Account = line.Parameters[2];
+			client.accountKnown = true;
         }
 
         [IrcMessageHandler(Replies.RPL_TOPIC)]
@@ -249,42 +228,35 @@ namespace AnIRC {
         [IrcMessageHandler(Replies.RPL_TOPICWHOTIME)]
         public static void HandleTopicStamp(IrcClient client, IrcLine line) {  // 333
             var time = IrcClient.DecodeUnixTime(double.Parse(line.Parameters[3]));
-            IrcChannel channel;
-            if (client.Channels.TryGetValue(line.Parameters[1], out channel)) {
-                channel.TopicSetter = line.Parameters[2];
-                channel.TopicStamp = time;
-            }
-            client.OnChannelTopicStamp(new ChannelTopicStampEventArgs(client.Channels.Get(line.Parameters[1]), line.Parameters[2], time));
+			if (client.Channels.TryGetValue(line.Parameters[1], out var channel)) {
+				channel.TopicSetter = line.Parameters[2];
+				channel.TopicStamp = time;
+			}
+			client.OnChannelTopicStamp(new ChannelTopicStampEventArgs(client.Channels.Get(line.Parameters[1]), line.Parameters[2], time));
         }
 
-        [IrcMessageHandler(Replies.RPL_INVITING)]
-        public static void HandleInviting(IrcClient client, IrcLine line) {  // 341
-            client.OnInviteSent(new InviteSentEventArgs(line.Parameters[1], line.Parameters[2]));
-        }
+		[IrcMessageHandler(Replies.RPL_INVITING)]
+		public static void HandleInviting(IrcClient client, IrcLine line) => client.OnInviteSent(new InviteSentEventArgs(line.Parameters[1], line.Parameters[2]));
 
-        [IrcMessageHandler(Replies.RPL_INVITELIST)]
+		[IrcMessageHandler(Replies.RPL_INVITELIST)]
         public static void HandleInviteList(IrcClient client, IrcLine line) {  // 346
             var time = IrcClient.DecodeUnixTime(double.Parse(line.Parameters[4]));
             client.OnInviteExemptList(new ChannelModeListEventArgs(client.Channels.Get(line.Parameters[1]), line.Parameters[2], line.Parameters[3], time));
         }
 
-        [IrcMessageHandler(Replies.RPL_ENDOFINVITELIST)]
-        public static void HandleInviteListEnd(IrcClient client, IrcLine line) {  // 347
-            client.OnInviteExemptListEnd(new ChannelModeListEndEventArgs(client.Channels.Get(line.Parameters[1]), line.Parameters[2]));
-        }
+		[IrcMessageHandler(Replies.RPL_ENDOFINVITELIST)]
+		public static void HandleInviteListEnd(IrcClient client, IrcLine line) => client.OnInviteExemptListEnd(new ChannelModeListEndEventArgs(client.Channels.Get(line.Parameters[1]), line.Parameters[2]));
 
-        [IrcMessageHandler(Replies.RPL_EXCEPTLIST)]
+		[IrcMessageHandler(Replies.RPL_EXCEPTLIST)]
         public static void HandleExceptionList(IrcClient client, IrcLine line) {  // 348
             var time = IrcClient.DecodeUnixTime(double.Parse(line.Parameters[4]));
             client.OnExemptList(new ChannelModeListEventArgs(client.Channels.Get(line.Parameters[1]), line.Parameters[2], line.Parameters[3], time));
         }
 
-        [IrcMessageHandler(Replies.RPL_ENDOFEXCEPTLIST)]
-        public static void HandleExceptionListEnd(IrcClient client, IrcLine line) {  // 349
-            client.OnExemptListEnd(new ChannelModeListEndEventArgs(client.Channels.Get(line.Parameters[1]), line.Parameters[2]));
-        }
+		[IrcMessageHandler(Replies.RPL_ENDOFEXCEPTLIST)]
+		public static void HandleExceptionListEnd(IrcClient client, IrcLine line) => client.OnExemptListEnd(new ChannelModeListEndEventArgs(client.Channels.Get(line.Parameters[1]), line.Parameters[2]));
 
-        [IrcMessageHandler(Replies.RPL_WHOREPLY)]
+		[IrcMessageHandler(Replies.RPL_WHOREPLY)]
         public static void HandleWhoReply(IrcClient client, IrcLine line) {  // 352
             // TODO: populate the user list?
             string[] fields = line.Parameters[7].Split(new char[] { ' ' }, 2);
@@ -297,7 +269,7 @@ namespace AnIRC {
             var flags = line.Parameters[6];
             var hops = int.Parse(fields[0]);
             var fullName = fields[1];
-            IrcUser user = null; IrcChannel channel = null; IrcChannelUser channelUser = null;
+			IrcChannel channel = null; IrcChannelUser channelUser = null;
 
             if (client.IsChannel(channelName) && client.Channels.TryGetValue(channelName, out channel)) {
                 // We are in a common channel with this person.
@@ -306,7 +278,7 @@ namespace AnIRC {
                     channel.Users.Add(channelUser);
                 }
             }
-            if (!client.Users.TryGetValue(nickname, out user)) {
+            if (!client.Users.TryGetValue(nickname, out var user)) {
                 if (channelUser != null) {
                     user = new IrcUser(client, nickname, ident, host, null, fullName);
                     user.Channels.Add(channel);
@@ -326,20 +298,19 @@ namespace AnIRC {
 
 				var oper = false;
                 foreach (char flag in flags) {
-                    char mode;
-                    if (flag == 'H') {
-                        user.Away = false;
-                    } else if (flag == 'G') {
-                        if (!user.Away) {
-                            user.Away = true;
-                            user.AwayReason = null;
-                            user.AwaySince = DateTime.Now;
-                        }
-                    } else if (flag == '*')
-                        oper = true;
-                    else if (channelUser != null && client.Extensions.StatusPrefix.TryGetValue(flag, out mode))
-                        channelUser.Status.Add(mode);
-                }
+					if (flag == 'H') {
+						user.Away = false;
+					} else if (flag == 'G') {
+						if (!user.Away) {
+							user.Away = true;
+							user.AwayReason = null;
+							user.AwaySince = DateTime.Now;
+						}
+					} else if (flag == '*')
+						oper = true;
+					else if (channelUser != null && client.Extensions.StatusPrefix.TryGetValue(flag, out char mode))
+						channelUser.Status.Add(mode);
+				}
 				if (user.Oper != oper) user.Oper = oper;
 			}
             client.OnWhoList(new WhoListEventArgs(channelName, ident, host, server, nickname, flags.ToCharArray(), hops, fullName));
@@ -348,17 +319,15 @@ namespace AnIRC {
         [IrcMessageHandler(Replies.RPL_NAMREPLY)]
         public static void HandleNamesReply(IrcClient client, IrcLine line) {  // 353
             if (line.Parameters[2] != "*") {
-                IrcChannel channel;
-				var knownChannel = client.Channels.TryGetValue(line.Parameters[2], out channel);
+				var knownChannel = client.Channels.TryGetValue(line.Parameters[2], out var channel);
 
-                HashSet<string> pendingNames;
-                if (!client.pendingNames.TryGetValue(line.Parameters[2], out pendingNames)) {
-                    // Make a set of the remembered users, so we can check for any not listed.
-                    pendingNames = new HashSet<string>(channel.Users.Select(user => user.Nickname));
-                    client.pendingNames[line.Parameters[2]] = pendingNames;
-                }
+				if (!client.pendingNames.TryGetValue(line.Parameters[2], out var pendingNames)) {
+					// Make a set of the remembered users, so we can check for any not listed.
+					pendingNames = new HashSet<string>(channel.Users.Select(user => user.Nickname));
+					client.pendingNames[line.Parameters[2]] = pendingNames;
+				}
 
-                if (channel != null) {
+				if (channel != null) {
                     foreach (var name in line.Parameters[3].Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)) {
                         // Some servers include a space after the last name.
                         for (int i = 0; i < name.Length; ++i) {
@@ -366,13 +335,12 @@ namespace AnIRC {
                             // Some IRC servers use = to prefix +s channels to opers.
                             // TODO: Find a better way to distinguish prefixes. Some networks allow wacky characters like '$' in nicknames.
                             if (c != '=' && !client.Extensions.StatusPrefix.ContainsKey(c)) {
-                                var user = client.Users.Get(name.Substring(i), true);
+                                var user = client.Users.Get(name[i..], true);
 								// client.Users.Get will update the user with the hostmask from userhost-in-names, if present.
 								if (knownChannel) {
 									if (!user.Channels.Contains(channel)) user.Channels.Add(channel);
 
-									IrcChannelUser channelUser;
-									if (channel.Users.TryGetValue(user.Nickname, out channelUser)) {
+									if (channel.Users.TryGetValue(user.Nickname, out var channelUser)) {
 										channelUser.Status = ChannelStatus.FromPrefix(client, name.Take(i));
 										pendingNames.Remove(user.Nickname);
 									} else
@@ -397,8 +365,7 @@ namespace AnIRC {
 			// If an async request has been added for this reply, we can find out the field types from that.
 			lock (client.asyncRequests) {
 				for (int i = 0; i < client.asyncRequests.Count; ++i) {
-					if (client.asyncRequests[i] is AsyncRequest.WhoxAsyncRequest) {
-						var asyncRequest = (AsyncRequest.WhoxAsyncRequest) client.asyncRequests[i];
+					if (client.asyncRequests[i] is AsyncRequest.WhoxAsyncRequest asyncRequest) {
 						if ((asyncRequest.QueryType == null || line.Parameters[1] == asyncRequest.QueryType) && asyncRequest.Fields.Count == line.Parameters.Length - 1) {
 							asyncRequest.Fields.CopyTo(e.Fields, 0);
 							break;
@@ -439,7 +406,6 @@ namespace AnIRC {
 						case WhoxField.Flags:
 							var oper = false;
 							foreach (char flag in parameters[i]) {
-								char mode;
 								if (flag == 'H') {
 									user.Away = false;
 								} else if (flag == 'G') {
@@ -450,13 +416,13 @@ namespace AnIRC {
 									}
 								} else if (flag == '*')
 									oper = true;
-								else if (channelUser != null && client.Extensions.StatusPrefix.TryGetValue(flag, out mode))
+								else if (channelUser != null && client.Extensions.StatusPrefix.TryGetValue(flag, out char mode))
 									channelUser.Status.Add(mode);
 							}
 							if (user.Oper != oper) user.Oper = oper;
 							break;
 						case WhoxField.Account:
-							user.Account = (parameters[i] == "0" ? null : parameters[i]);
+							user.Account = parameters[i] == "0" ? null : parameters[i];
 							break;
 						case WhoxField.FullName:
 							user.FullName = parameters[i];
@@ -469,15 +435,14 @@ namespace AnIRC {
 		[IrcMessageHandler(RPL_ENDOFNAMES)]
         public static void HandleNamesEnd(IrcClient client, IrcLine line) {  // 366
             if (line.Parameters[1] != "*") {
-                IrcChannel channel; HashSet<string> pendingNames;
-                if (client.pendingNames.TryGetValue(line.Parameters[1], out pendingNames) && client.Channels.TryGetValue(line.Parameters[1], out channel)) {
-                    // Remove any users who weren't in the NAMES list.
-                    foreach (string name in pendingNames)
-                        channel.Users.Remove(name);
+				if (client.pendingNames.TryGetValue(line.Parameters[1], out var pendingNames) && client.Channels.TryGetValue(line.Parameters[1], out var channel)) {
+					// Remove any users who weren't in the NAMES list.
+					foreach (string name in pendingNames)
+						channel.Users.Remove(name);
 
-                    client.pendingNames.Remove(line.Parameters[1]);
-                }
-            }
+					client.pendingNames.Remove(line.Parameters[1]);
+				}
+			}
 
             client.OnNamesEnd(new ChannelModeListEndEventArgs(client.Channels.Get(line.Parameters[1]), line.Parameters[2]));
         }
@@ -488,95 +453,70 @@ namespace AnIRC {
             client.OnBanList(new ChannelModeListEventArgs(client.Channels.Get(line.Parameters[1]), line.Parameters[2], line.Parameters[3], time));
         }
 
-        [IrcMessageHandler(Replies.RPL_ENDOFBANLIST)]
-        public static void HandleBanListEnd(IrcClient client, IrcLine line) {  // 368
-            client.OnBanListEnd(new ChannelModeListEndEventArgs(client.Channels.Get(line.Parameters[1]), line.Parameters[2]));
-        }
+		[IrcMessageHandler(Replies.RPL_ENDOFBANLIST)]
+		public static void HandleBanListEnd(IrcClient client, IrcLine line) => client.OnBanListEnd(new ChannelModeListEndEventArgs(client.Channels.Get(line.Parameters[1]), line.Parameters[2]));
 
-        [IrcMessageHandler(Replies.RPL_ENDOFWHOWAS)]
-        public static void HandleWhowasEnd(IrcClient client, IrcLine line) {  // 369
-            client.OnWhoWasEnd(new WhoisEndEventArgs(line.Parameters[1], line.Parameters[2]));
-        }
+		[IrcMessageHandler(Replies.RPL_ENDOFWHOWAS)]
+		public static void HandleWhowasEnd(IrcClient client, IrcLine line) => client.OnWhoWasEnd(new WhoisEndEventArgs(line.Parameters[1], line.Parameters[2]));
 
-        [IrcMessageHandler(Replies.RPL_ENDOFMOTD)]
-        public static void HandleEndOfMotd(IrcClient client, IrcLine line) {  // 376
-            client.State = IrcClientState.Online;
-        }
+		[IrcMessageHandler(Replies.RPL_ENDOFMOTD)]
+		public static void HandleEndOfMotd(IrcClient client, IrcLine line) => client.State = IrcClientState.Online;
 
-        [IrcMessageHandler(Replies.ERR_CANNOTSENDTOCHAN)]
-        public static void HandleCannotSendToChan(IrcClient client, IrcLine line) {  // 404
-            client.OnChannelMessageDenied(new ChannelJoinDeniedEventArgs(line.Parameters[1], 0, line.Parameters[2]));
-        }
+		[IrcMessageHandler(Replies.ERR_CANNOTSENDTOCHAN)]
+		public static void HandleCannotSendToChan(IrcClient client, IrcLine line) => client.OnChannelMessageDenied(new ChannelJoinDeniedEventArgs(line.Parameters[1], 0, line.Parameters[2]));
 
-        [IrcMessageHandler(Replies.ERR_NOMOTD)]
-        public static void HandleNoMotd(IrcClient client, IrcLine line) {  // 422
-            client.State = IrcClientState.Online;
-        }
+		[IrcMessageHandler(Replies.ERR_NOMOTD)]
+		public static void HandleNoMotd(IrcClient client, IrcLine line) => client.State = IrcClientState.Online;
 
-        [IrcMessageHandler(Replies.ERR_ERRONEUSNICKNAME)]
-        public static void HandleErroneousNickname(IrcClient client, IrcLine line) {  // 432
-            client.OnNicknameInvalid(new NicknameEventArgs(line.Parameters[1], line.Parameters[2]));
-        }
+		[IrcMessageHandler(Replies.ERR_ERRONEUSNICKNAME)]
+		public static void HandleErroneousNickname(IrcClient client, IrcLine line) => client.OnNicknameInvalid(new NicknameEventArgs(line.Parameters[1], line.Parameters[2]));
 
-        [IrcMessageHandler(Replies.ERR_NICKNAMEINUSE)]
-        public static void HandleNicknameInUse(IrcClient client, IrcLine line) {  // 433
-            client.OnNicknameTaken(new NicknameEventArgs(line.Parameters[1], line.Parameters[2]));
-        }
+		[IrcMessageHandler(Replies.ERR_NICKNAMEINUSE)]
+		public static void HandleNicknameInUse(IrcClient client, IrcLine line) => client.OnNicknameTaken(new NicknameEventArgs(line.Parameters[1], line.Parameters[2]));
 
-        [IrcMessageHandler(Replies.ERR_CHANNELISFULL)]
-        public static void HandleChannelFull(IrcClient client, IrcLine line) {  // 471
-            client.OnChannelJoinDenied(new ChannelJoinDeniedEventArgs(line.Parameters[1], ChannelJoinDeniedReason.Limit, line.Parameters[2]));
-        }
+		[IrcMessageHandler(Replies.ERR_CHANNELISFULL)]
+		public static void HandleChannelFull(IrcClient client, IrcLine line) => client.OnChannelJoinDenied(new ChannelJoinDeniedEventArgs(line.Parameters[1], ChannelJoinDeniedReason.Limit, line.Parameters[2]));
 
-        [IrcMessageHandler(Replies.ERR_INVITEONLYCHAN)]
-        public static void HandleChannelInviteOnly(IrcClient client, IrcLine line) {  // 473
-            client.OnChannelJoinDenied(new ChannelJoinDeniedEventArgs(line.Parameters[1], ChannelJoinDeniedReason.InviteOnly, line.Parameters[2]));
-        }
+		[IrcMessageHandler(Replies.ERR_INVITEONLYCHAN)]
+		public static void HandleChannelInviteOnly(IrcClient client, IrcLine line) => client.OnChannelJoinDenied(new ChannelJoinDeniedEventArgs(line.Parameters[1], ChannelJoinDeniedReason.InviteOnly, line.Parameters[2]));
 
-        [IrcMessageHandler(Replies.ERR_BANNEDFROMCHAN)]
-        public static void HandleChannelBanned(IrcClient client, IrcLine line) {  // 474
-            client.OnChannelJoinDenied(new ChannelJoinDeniedEventArgs(line.Parameters[1], ChannelJoinDeniedReason.Banned, line.Parameters[2]));
-        }
+		[IrcMessageHandler(Replies.ERR_BANNEDFROMCHAN)]
+		public static void HandleChannelBanned(IrcClient client, IrcLine line) => client.OnChannelJoinDenied(new ChannelJoinDeniedEventArgs(line.Parameters[1], ChannelJoinDeniedReason.Banned, line.Parameters[2]));
 
-        [IrcMessageHandler(Replies.ERR_BADCHANNELKEY)]
-        public static void HandleChannelKeyFailure(IrcClient client, IrcLine line) {  // 475
-            client.OnChannelJoinDenied(new ChannelJoinDeniedEventArgs(line.Parameters[1], ChannelJoinDeniedReason.KeyFailure, line.Parameters[2]));
-        }
+		[IrcMessageHandler(Replies.ERR_BADCHANNELKEY)]
+		public static void HandleChannelKeyFailure(IrcClient client, IrcLine line) => client.OnChannelJoinDenied(new ChannelJoinDeniedEventArgs(line.Parameters[1], ChannelJoinDeniedReason.KeyFailure, line.Parameters[2]));
 
-        [IrcMessageHandler(Replies.RPL_GONEAWAY)]
+		[IrcMessageHandler(Replies.RPL_GONEAWAY)]
         public static void HandleWatchAway(IrcClient client, IrcLine line) {  // 598
             if (client.Extensions.SupportsMonitor) {
-                IrcUser user;
-                if (client.Users.TryGetValue(line.Parameters[1], out user)) {
-                    user.Away = true;
-                    user.AwayReason = line.Parameters[5];
-                    user.AwaySince = IrcClient.DecodeUnixTime(double.Parse(line.Parameters[4]));
-                }
-            }
+				if (client.Users.TryGetValue(line.Parameters[1], out var user)) {
+					user.Away = true;
+					user.AwayReason = line.Parameters[5];
+					user.AwaySince = IrcClient.DecodeUnixTime(double.Parse(line.Parameters[4]));
+				}
+			}
         }
 
         [IrcMessageHandler(Replies.RPL_NOTAWAY)]
         public static void HandleWatchBack(IrcClient client, IrcLine line) {  // 599
             if (client.Extensions.SupportsMonitor) {
-                IrcUser user;
-                if (client.Users.TryGetValue(line.Parameters[1], out user)) {
-                    user.Away = false;
-                }
-            }
+				if (client.Users.TryGetValue(line.Parameters[1], out var user)) {
+					user.Away = false;
+				}
+			}
         }
 
         [IrcMessageHandler(Replies.RPL_WATCHOFF)]
         public static void HandleWatchRemoved(IrcClient client, IrcLine line) {  // 602
             if (client.Extensions.SupportsMonitor) {
-                IrcUser user;
-                if (client.Users.TryGetValue(line.Parameters[1], out user)) {
-                    user.Monitoring = false;
-                    if (user.Channels.Count == 0) {
-                        client.Users.Remove(line.Parameters[1]);
-                        client.OnUserDisappeared(new IrcUserEventArgs(user));
-                    }
-                }
-            }
+				if (client.Users.TryGetValue(line.Parameters[1], out var user)) {
+					user.Monitoring = false;
+					if (user.Channels.Count == 0) {
+						client.Users.Remove(line.Parameters[1]);
+						client.OnUserDisappeared(new IrcUserEventArgs(user));
+					}
+				}
+			}
         }
 
         [IrcMessageHandler(Replies.RPL_LOGON)]
@@ -642,13 +582,12 @@ namespace AnIRC {
 		[IrcMessageHandler(Replies.RPL_NOWISAWAY)]
         public static void HandleWatchIsAway(IrcClient client, IrcLine line) {  // 609
             if (client.Extensions.SupportsMonitor) {
-                IrcUser user;
-                if (client.Users.TryGetValue(line.Parameters[1], out user)) {
-                    user.Away = true;
-                    user.AwayReason = null;
-                    user.AwaySince = IrcClient.DecodeUnixTime(double.Parse(line.Parameters[4]));
-                }
-            }
+				if (client.Users.TryGetValue(line.Parameters[1], out var user)) {
+					user.Away = true;
+					user.AwayReason = null;
+					user.AwaySince = IrcClient.DecodeUnixTime(double.Parse(line.Parameters[4]));
+				}
+			}
         }
 
 		[IrcMessageHandler(Replies.RPL_MONONLINE)]
@@ -729,21 +668,15 @@ namespace AnIRC {
 
 
 		[IrcMessageHandler(Replies.RPL_LOGGEDIN)]
-        public static void HandleLoggedIn(IrcClient client, IrcLine line) {  // 900
-            client.Me.Account = line.Parameters[2];
-        }
+		public static void HandleLoggedIn(IrcClient client, IrcLine line) => client.Me.Account = line.Parameters[2];
 
-        [IrcMessageHandler(Replies.RPL_LOGGEDOUT)]
-        public static void HandleLoggedOut(IrcClient client, IrcLine line) {  // 901
-            client.Me.Account = null;
-        }
+		[IrcMessageHandler(Replies.RPL_LOGGEDOUT)]
+		public static void HandleLoggedOut(IrcClient client, IrcLine line) => client.Me.Account = null;
 
-        [IrcMessageHandler(Replies.RPL_SASLSUCCESS)]
-        public static void HandleSaslSuccess(IrcClient client, IrcLine line) {  // 903
-            client.Send("CAP END");
-        }
+		[IrcMessageHandler(Replies.RPL_SASLSUCCESS)]
+		public static void HandleSaslSuccess(IrcClient client, IrcLine line) => client.Send("CAP END");
 
-        [IrcMessageHandler(Replies.ERR_NICKLOCKED)]
+		[IrcMessageHandler(Replies.ERR_NICKLOCKED)]
         [IrcMessageHandler(Replies.ERR_SASLFAIL)]
         [IrcMessageHandler(Replies.ERR_SASLTOOLONG)]
         public static void HandleSaslFailure(IrcClient client, IrcLine line) {  // 902, 904, 905
@@ -757,11 +690,8 @@ namespace AnIRC {
         [IrcMessageHandler("ACCOUNT")]
         public static void HandleAccount(IrcClient client, IrcLine line) {
             var user = client.Users.Get(line.Prefix, false);
-            if (line.Parameters[0] == "*")
-                user.Account = null;
-            else
-                user.Account = line.Parameters[0];
-        }
+            user.Account = line.Parameters[0] == "*" ? null : line.Parameters[0];
+		}
 
         [IrcMessageHandler("AUTHENTICATE")]
         public static void HandleAuthenticate(IrcClient client, IrcLine line) {
@@ -814,15 +744,13 @@ namespace AnIRC {
 								else {
 									int pos = field.IndexOf('=', i);
 
-									IrcCapability cap;
-									if (pos == -1) cap = new IrcCapability(field.Substring(i), sticky, ackRequired);
-									else cap = new IrcCapability(field.Substring(i, pos - i), field.Substring(pos + 1), sticky, ackRequired);
-
+									var cap = pos < 0
+										? new IrcCapability(field[i..], sticky, ackRequired)
+										: new IrcCapability(field[i..pos], field[(pos + 1)..], sticky, ackRequired);
 									if (!client.SupportedCapabilities.ContainsKey(cap.Name)) {
 										client.supportedCapabilities.Add(cap.Name, cap);
 										newCapabilities.Add(cap.Name, cap);
-										if (cap.Name == "account-notify" || cap.Name == "away-notify" || cap.Name == "cap-notify" ||
-											cap.Name == "extended-join" || cap.Name == "multi-prefix")
+										if (cap.Name is "account-notify" or "away-notify" or "cap-notify" or "extended-join" or "multi-prefix")
 											enableCapabilities.Add(cap.Name);
 										else if (cap.Name == "sasl" && client.SaslUsername != null && client.SaslPassword != null && 
 											(cap.Parameter == null || cap.Parameter.Split(',').Contains("PLAIN")))
@@ -859,7 +787,7 @@ namespace AnIRC {
 							} else if (field[i] == '=') {
 							} else if (field[i] == '~') {
 							} else {
-								var capName = field.Substring(i);
+								var capName = field[i..];
 								if (remove) {
 									client.enabledCapabilities.Remove(capName);
 								}
@@ -904,28 +832,23 @@ namespace AnIRC {
 
         [IrcMessageHandler("CHGHOST")]
         public static void HandleChgHost(IrcClient client, IrcLine line) {
-            IrcUser user;
-            string nickname = Hostmask.GetNickname(line.Prefix);
-            if (client.Users.TryGetValue(nickname, out user)) {
+			string nickname = Hostmask.GetNickname(line.Prefix);
+			if (client.Users.TryGetValue(nickname, out var user)) {
                 user.Ident = line.Parameters[0];
                 user.Host = line.Parameters[1];
             }
         }
 
-        [IrcMessageHandler("ERROR")]
-        public static void HandleError(IrcClient client, IrcLine line) {
-            client.OnServerError(new ServerErrorEventArgs(line.Parameters[0]));
-        }
+		[IrcMessageHandler("ERROR")]
+		public static void HandleError(IrcClient client, IrcLine line) => client.OnServerError(new ServerErrorEventArgs(line.Parameters[0]));
 
-        [IrcMessageHandler("INVITE")]
-        public static void HandleInvite(IrcClient client, IrcLine line) {
-            client.OnInvite(new InviteEventArgs(client.Users.Get(line.Prefix, false), line.Parameters[0], line.Parameters[1]));
-        }
+		[IrcMessageHandler("INVITE")]
+		public static void HandleInvite(IrcClient client, IrcLine line) => client.OnInvite(new InviteEventArgs(client.Users.Get(line.Prefix, false), line.Parameters[0], line.Parameters[1]));
 
-        [IrcMessageHandler("JOIN")]
+		[IrcMessageHandler("JOIN")]
         public static void HandleJoin(IrcClient client, IrcLine line) {
-            IrcUser user; IrcChannel channel; Task namesTask;
-            bool onChannel = client.Channels.TryGetValue(line.Parameters[0], out channel);
+            IrcUser user;  Task namesTask;
+            bool onChannel = client.Channels.TryGetValue(line.Parameters[0], out var channel);
 
             if (line.Parameters.Length == 3) {
                 // Extended join
@@ -957,16 +880,13 @@ namespace AnIRC {
         [IrcMessageHandler("KICK")]
         public static void HandleKick(IrcClient client, IrcLine line) {
             var user = client.Users.Get(line.Prefix, false);
-            IrcChannel channel = client.Channels.Get(line.Parameters[0]);
-            IrcChannelUser target;
-            if (!channel.Users.TryGetValue(line.Parameters[1], out target)) target = new IrcChannelUser(client, channel, line.Parameters[1]);
+            var channel = client.Channels.Get(line.Parameters[0]);
+			if (!channel.Users.TryGetValue(line.Parameters[1], out var target)) target = new IrcChannelUser(client, channel, line.Parameters[1]);
 
-            var targetUser = target.User;
-            IrcUser[] disappearedUsers;
-            if (targetUser != null) disappearedUsers = client.RemoveUserFromChannel(channel, targetUser);
-            else disappearedUsers = null;
+			var targetUser = target.User;
+            var disappearedUsers = targetUser != null ? client.RemoveUserFromChannel(channel, targetUser) : null;
 
-            client.OnChannelKick(new ChannelKickEventArgs(user, channel, target, line.Parameters.Length >= 3 ? line.Parameters[2] : null));
+			client.OnChannelKick(new ChannelKickEventArgs(user, channel, target, line.Parameters.Length >= 3 ? line.Parameters[2] : null));
             client.OnChannelLeave(new ChannelPartEventArgs(user, channel, "Kicked out by " + user.Nickname + ": " + (line.Parameters.Length >= 3 ? line.Parameters[2] : null)));
 
             if (disappearedUsers != null) {
@@ -1017,8 +937,8 @@ namespace AnIRC {
                 user.Nickname = line.Parameters[0];
                 client.Users.Add(user);
 
-                foreach (IrcChannel channel in user.Channels) {
-                    IrcChannelUser channelUser = channel.Users[oldNickname];
+                foreach (var channel in user.Channels) {
+                    var channelUser = channel.Users[oldNickname];
                     channel.Users.Remove(channelUser);
                     channelUser.Nickname = line.Parameters[0];
                     channel.Users.Add(channelUser);
@@ -1061,12 +981,10 @@ namespace AnIRC {
             client.Send(line.Parameters.Length == 0 ? "PONG" : "PONG :" + line.Parameters[0]);
         }
 
-        [IrcMessageHandler("PONG")]
-        public static void HandlePong(IrcClient client, IrcLine line) {
-            client.OnPong(new PingEventArgs(line.Prefix));
-        }
+		[IrcMessageHandler("PONG")]
+		public static void HandlePong(IrcClient client, IrcLine line) => client.OnPong(new PingEventArgs(line.Prefix));
 
-        [IrcMessageHandler("PRIVMSG")]
+		[IrcMessageHandler("PRIVMSG")]
         public static void HandlePrivmsg(IrcClient client, IrcLine line) {
             var user = client.Users.Get(line.Prefix, false);
 
@@ -1103,12 +1021,12 @@ namespace AnIRC {
         public static void HandleQuit(IrcClient client, IrcLine line) {
             var user = client.Users.Get(line.Prefix, false);
             client.Users.Remove(user);
-            foreach (IrcChannel channel in user.Channels)
+            foreach (var channel in user.Channels)
                 channel.Users.Remove(user.Nickname);
 
-            var message = (line.Parameters.Length >= 1 ? line.Parameters[0] : null);
+            var message = line.Parameters.Length >= 1 ? line.Parameters[0] : null;
             client.OnUserQuit(new QuitEventArgs(user, message));
-            foreach (IrcChannel channel in user.Channels)
+            foreach (var channel in user.Channels)
                 client.OnChannelLeave(new ChannelPartEventArgs(user, channel, (message != null && message.StartsWith("Quit:") ? "Quit: " : "Disconnected: ") + message));
 
             user.Channels.Clear();
@@ -1123,12 +1041,9 @@ namespace AnIRC {
             var oldTopicSetter = channel.TopicSetter;
             var oldTopicStamp = channel.TopicStamp;
 
-            if (line.Parameters.Length >= 2 && line.Parameters[1] != "")
-                channel.Topic = line.Parameters[1];
-            else
-                channel.Topic = null;
+            channel.Topic = line.Parameters.Length >= 2 && line.Parameters[1] != "" ? line.Parameters[1] : null;
 
-            channel.TopicSetter = user.ToString();
+			channel.TopicSetter = user.ToString();
             channel.TopicStamp = DateTime.Now;
 
             client.OnChannelTopicChange(new ChannelTopicChangeEventArgs(user, channel, oldTopic, oldTopicSetter, oldTopicStamp));

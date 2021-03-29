@@ -25,6 +25,6 @@ namespace AnIRC {
         }
 
         public override int GetHashCode() => this.Name.GetHashCode();
-        public override bool Equals(object other) => (other != null && other is IrcCapability && this.Name == ((IrcCapability) other).Name);
+        public override bool Equals(object other) => other != null && other is IrcCapability capability && this.Name == capability.Name;
     }
 }

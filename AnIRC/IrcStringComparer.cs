@@ -17,8 +17,8 @@ namespace AnIRC {
     /// Provides <see cref="StringComparer"/> instances that make case-insensitive comparisons as defined by the IRC protocol.
     /// </summary>
     public class IrcStringComparer : StringComparer {
-        private char maxUppercase;
-        private char maxLowercase;
+        private readonly char maxUppercase;
+        private readonly char maxLowercase;
 
         /// <summary>Returns a <see cref="StringComparer"/> that makes case-insensitive comparisons using the ASCII case mapping.</summary>
         public static IrcStringComparer ASCII { get; } = new IrcStringComparer(CaseMappingMode.ASCII);
@@ -29,27 +29,27 @@ namespace AnIRC {
 
 		/// <summary>Returns a <see cref="StringComparer"/> that makes case-insensitive comparisons using the specified rule.</summary>
 		public static IrcStringComparer GetComparer(CaseMappingMode mode) {
-			switch (mode) {
-				case CaseMappingMode.ASCII: return IrcStringComparer.ASCII;
-				case CaseMappingMode.RFC1459: return IrcStringComparer.RFC1459;
-				case CaseMappingMode.StrictRFC1459: return IrcStringComparer.StrictRFC1459;
-				default: throw new ArgumentException(nameof(mode) + " is not a valid case mapping mode.", nameof(mode));
-			}
+			return mode switch {
+				CaseMappingMode.ASCII => IrcStringComparer.ASCII,
+				CaseMappingMode.RFC1459 => IrcStringComparer.RFC1459,
+				CaseMappingMode.StrictRFC1459 => IrcStringComparer.StrictRFC1459,
+				_ => throw new ArgumentException(nameof(mode) + " is not a valid case mapping mode.", nameof(mode)),
+			};
 		}
 
 		internal IrcStringComparer(CaseMappingMode mode) {
             switch (mode) {
                 case CaseMappingMode.ASCII:
-                    maxUppercase = 'Z';
-                    maxLowercase = 'z';
+					this.maxUppercase = 'Z';
+					this.maxLowercase = 'z';
                     break;
                 case CaseMappingMode.RFC1459:
-                    maxUppercase = '^';
-                    maxLowercase = '~';
+					this.maxUppercase = '^';
+					this.maxLowercase = '~';
                     break;
                 case CaseMappingMode.StrictRFC1459:
-                    maxUppercase = ']';
-                    maxLowercase = '}';
+					this.maxUppercase = ']';
+					this.maxLowercase = '}';
                     break;
                 default:
                     throw new ArgumentException(nameof(mode) + " is not a valid case mapping mode.", nameof(mode));
@@ -67,8 +67,8 @@ namespace AnIRC {
 
             for (int i = 0; i < p1.Length; ++i) {
                 char c1 = p1[i]; char c2 = p2[i];
-                if (c1 >= 'a' && c1 <= maxLowercase) c1 -= (char) 32;
-                if (c2 >= 'a' && c2 <= maxLowercase) c2 -= (char) 32;
+                if (c1 >= 'a' && c1 <= this.maxLowercase) c1 -= (char) 32;
+                if (c2 >= 'a' && c2 <= this.maxLowercase) c2 -= (char) 32;
                 if (c1 != c2) return false;
             }
             return true;
@@ -77,7 +77,7 @@ namespace AnIRC {
         /// <summary>Calculates a case-insensitive hash code for a string.</summary>
         /// <param name="s">The string to use.</param>
         /// <returns>The hash code of the uppercase version of the specified string.</returns>
-        public override int GetHashCode(string s) => ToUpper(s).GetHashCode();
+        public override int GetHashCode(string s) => this.ToUpper(s).GetHashCode();
 
         /// <summary>Compares two strings.</summary>
         /// <param name="p1">The first string to compare.</param>
@@ -95,38 +95,31 @@ namespace AnIRC {
             for (int i = 0; i < p1.Length; ++i) {
                 if (i >= p2.Length) return 1;
                 int c1 = p1[i]; int c2 = p2[i];
-                if (c1 >= (char) 97 && c1 <= maxLowercase) c1 -= 32;
-                if (c2 >= (char) 97 && c2 <= maxLowercase) c2 -= 32;
+                if (c1 >= (char) 97 && c1 <= this.maxLowercase) c1 -= 32;
+                if (c2 >= (char) 97 && c2 <= this.maxLowercase) c2 -= 32;
                 c1 -= c2;
                 if (c1 != 0) return c1;
             }
-            if (p2.Length > p1.Length) return -1;
-            return 0;
-        }
+			return p2.Length > p1.Length ? -1 : 0;
+		}
 
-        /// <summary>Converts a character to uppercase according to this comparer's case mapping rules.</summary>
-        public virtual char ToUpper(char c) {
-            if (c >= 'a' && c <= this.maxLowercase) return (char) (c - 32);
-            return c;
-        }
-        /// <summary>Converts a string to uppercase according to this comparer's case mapping rules.</summary>
-        public virtual string ToUpper(string s) {
+		/// <summary>Converts a character to uppercase according to this comparer's case mapping rules.</summary>
+		public virtual char ToUpper(char c) => c >= 'a' && c <= this.maxLowercase ? (char) (c - 32) : c;
+		/// <summary>Converts a string to uppercase according to this comparer's case mapping rules.</summary>
+		public virtual string ToUpper(string s) {
             var chars = s.ToCharArray();
             for (int i = 0; i < chars.Length; ++i)
-                chars[i] = ToUpper(chars[i]);
+                chars[i] = this.ToUpper(chars[i]);
             return new string(chars);
         }
 
-        /// <summary>Converts a character to lowercase according to this comparer's case mapping rules.</summary>
-        public virtual char ToLower(char c) {
-            if (c >= 'A' && c <= this.maxUppercase) return (char) (c + 32);
-            return c;
-        }
-        /// <summary>Converts a string to lowercase according to this comparer's case mapping rules.</summary>
-        public virtual string ToLower(string s) {
+		/// <summary>Converts a character to lowercase according to this comparer's case mapping rules.</summary>
+		public virtual char ToLower(char c) => c >= 'A' && c <= this.maxUppercase ? (char) (c + 32) : c;
+		/// <summary>Converts a string to lowercase according to this comparer's case mapping rules.</summary>
+		public virtual string ToLower(string s) {
             var chars = s.ToCharArray();
             for (int i = 0; i < chars.Length; ++i)
-                chars[i] = ToLower(chars[i]);
+                chars[i] = this.ToLower(chars[i]);
             return new string(chars);
         }
     }

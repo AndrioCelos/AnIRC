@@ -11,10 +11,8 @@ namespace AnIRC {
 		/// <summary>Returns the status message received from the server.</summary>
         public string Message { get; set; }
 
-        public AwayEventArgs(string message) {
-            this.Message = message;
-        }
-    }
+		public AwayEventArgs(string message) => this.Message = message;
+	}
 
     public class AwayMessageEventArgs : EventArgs {
 		/// <summary>Returns the nickname in the message.</summary>
@@ -32,9 +30,7 @@ namespace AnIRC {
 		/// <summary>A set of capabilities that are available.</summary>
 		public ReadOnlyDictionary<string, IrcCapability> Capabilities { get; }
 
-		public CapabilitiesEventArgs(IDictionary<string, IrcCapability> capabilities) {
-			this.Capabilities = new ReadOnlyDictionary<string, IrcCapability>(capabilities);
-		}
+		public CapabilitiesEventArgs(IDictionary<string, IrcCapability> capabilities) => this.Capabilities = new ReadOnlyDictionary<string, IrcCapability>(capabilities);
 	}
 
 	public class CapabilitiesAddedEventArgs : CapabilitiesEventArgs {
@@ -42,9 +38,7 @@ namespace AnIRC {
 		public ISet<string> EnableCapabilities { get; }
 
 		public CapabilitiesAddedEventArgs(IDictionary<string, IrcCapability> capabilities, ISet<string> enableCapabilities)
-			: base(capabilities) {
-			this.EnableCapabilities = enableCapabilities;
-		}
+			: base(capabilities) => this.EnableCapabilities = enableCapabilities;
 
 		/// <summary>Adds the specified capability to the list of capabilities to be enabled if it is supported by the server.</summary>
 		/// <returns>True if the capability is supported; false otherwise.</returns>
@@ -181,13 +175,13 @@ namespace AnIRC {
 		/// <remarks>This property uses deferred execution. This means that the user list is not actually searched until the enumerable is enumerated.</remarks>
 		public IEnumerable<IrcChannelUser> MatchedUsers { get; set; }
 
-        public ChannelListChangedEventArgs(IrcUser sender, IrcChannel channel, bool direction, char mode, string parameter, IEnumerable<IrcChannelUser> matchedUsers) {
+        public ChannelListChangedEventArgs(IrcUser sender, IrcChannel channel, bool direction, char mode, string parameter) {
             this.Sender = sender;
             this.Channel = channel;
             this.Direction = direction;
             this.Mode = mode;
             this.Parameter = parameter;
-            this.MatchedUsers = Channel.Users.Matching(parameter);
+            this.MatchedUsers = this.Channel.Users.Matching(parameter);
         }
     }
 
@@ -210,10 +204,8 @@ namespace AnIRC {
 		/// <summary>Returns the status message received from the server.</summary>
         public string Message { get; set; }
 
-        public ChannelListEndEventArgs(string message) {
-            this.Message = message;
-        }
-    }
+		public ChannelListEndEventArgs(string message) => this.Message = message;
+	}
 
     public class ChannelMessageEventArgs : EventArgs {
 		/// <summary>Returns an <see cref="IrcUser"/> object representing the user who sent the message.</summary>
@@ -456,10 +448,8 @@ namespace AnIRC {
     public class IrcUserEventArgs : EventArgs {
         public IrcUser User { get; }
 
-        public IrcUserEventArgs(IrcUser user) {
-            this.User = user;
-        }
-    }
+		public IrcUserEventArgs(IrcUser user) => this.User = user;
+	}
 
     public class InviteEventArgs : EventArgs {
 		/// <summary>Returns an <see cref="IrcUser"/> object representing the user who sent the message.</summary>
@@ -492,10 +482,8 @@ namespace AnIRC {
 		/// <summary>Returns a line of the MotD.</summary>
         public string Message { get; set; }
 
-        public MotdEventArgs(string message) {
-            this.Message = message;
-        }
-    }
+		public MotdEventArgs(string message) => this.Message = message;
+	}
 
     public class NicknameEventArgs : EventArgs {
         public string Nickname { get; set; }
@@ -522,10 +510,8 @@ namespace AnIRC {
     public class PingEventArgs : EventArgs {
         public string Server { get; set; }
 
-        public PingEventArgs(string server) {
-            this.Server = server;
-        }
-    }
+		public PingEventArgs(string server) => this.Server = server;
+	}
 
     public class PrivateMessageEventArgs : EventArgs {
 		/// <summary>Returns an <see cref="IrcUser"/> object representing the user who sent the message.</summary>
@@ -558,29 +544,23 @@ namespace AnIRC {
 		/// <summary>Returns or sets the line that is to be sent as a string.</summary>
         public string Data { get; set; }
 
-        public RawLineEventArgs(string data) {
-            this.Data = data;
-        }
-    }
+		public RawLineEventArgs(string data) => this.Data = data;
+	}
 
     public class RegisteredEventArgs : EventArgs {
         /// <summary>Returns a value indicating whether the connection is going to be continued or terminated.</summary>
         /// <remarks>The connection will be terminated if SASL authentication was required and the server doesn't support it.</remarks>
         public bool Continuing { get; }
 
-        public RegisteredEventArgs(bool continuing) {
-            this.Continuing = continuing;
-        }
-    }
+		public RegisteredEventArgs(bool continuing) => this.Continuing = continuing;
+	}
 
     public class ServerErrorEventArgs : EventArgs {
 		/// <summary>Returns the error message text.</summary>
         public string Message { get; set; }
 
-        public ServerErrorEventArgs(string message) {
-            this.Message = message;
-        }
-    }
+		public ServerErrorEventArgs(string message) => this.Message = message;
+	}
 
     public class StateEventArgs : EventArgs {
 		/// <summary>Returns the previous state of the <see cref="IrcClient"/>.</summary>
@@ -610,10 +590,8 @@ namespace AnIRC {
 		/// <summary>Returns a string representing the local user's current user modes.</summary>
         public string Modes { get; set; }
 
-        public UserModesEventArgs(string modes) {
-            this.Modes = modes;
-        }
-    }
+		public UserModesEventArgs(string modes) => this.Modes = modes;
+	}
 
     public class ValidateCertificateEventArgs : EventArgs {
 		/// <summary>Returns the certificate presented by the server.</summary>

@@ -27,11 +27,11 @@ namespace AnIRC {
 
         /// <summary>Returns the <see cref="IrcChannelUser"/> with the specified nickname.</summary>
         public IrcChannelUser this[string nickname] {
-            get { return this.Users[nickname]; }
-            internal set { this.Users[nickname] = value; }
-        }
+			get => this.Users[nickname];
+			internal set => this.Users[nickname] = value;
+		}
 
-        public IEnumerable<IrcChannelUser> Matching(string hostmask)
+		public IEnumerable<IrcChannelUser> Matching(string hostmask)
             => this.Users.Values.Where(user => Hostmask.Matches(user.User.ToString(), hostmask));
 
         internal void Add(IrcChannelUser user) => this.Users.Add(user.Nickname, user);
@@ -56,11 +56,11 @@ namespace AnIRC {
 
         #region ICollection support
         bool ICollection<IrcChannelUser>.IsReadOnly => true;
-        void ICollection<IrcChannelUser>.Add(IrcChannelUser item) { throw new NotSupportedException("IrcChannelUserCollection is read-only."); }
-        void ICollection<IrcChannelUser>.Clear() { throw new NotSupportedException("IrcChannelUserCollection is read-only."); }
-        bool ICollection<IrcChannelUser>.Contains(IrcChannelUser item) => this.Users.ContainsValue(item);
-        bool ICollection<IrcChannelUser>.Remove(IrcChannelUser item) { throw new NotSupportedException("IrcChannelUserCollection is read-only."); }
-        IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+		void ICollection<IrcChannelUser>.Add(IrcChannelUser item) => throw new NotSupportedException("IrcChannelUserCollection is read-only.");
+		void ICollection<IrcChannelUser>.Clear() => throw new NotSupportedException("IrcChannelUserCollection is read-only.");
+		bool ICollection<IrcChannelUser>.Contains(IrcChannelUser item) => this.Users.ContainsValue(item);
+		bool ICollection<IrcChannelUser>.Remove(IrcChannelUser item) => throw new NotSupportedException("IrcChannelUserCollection is read-only.");
+		IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
         #endregion
     }
 }

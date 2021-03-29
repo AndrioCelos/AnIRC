@@ -46,7 +46,7 @@ namespace AnIRC {
 
         internal WhoisResponse(IrcClient client) {
             this.lines = new List<IrcLine>();
-            this.Lines = lines.AsReadOnly();
+            this.Lines = this.lines.AsReadOnly();
             this.channels = new Dictionary<string, ChannelStatus>(client.CaseMappingComparer);
             this.Channels = new ReadOnlyDictionary<string, ChannelStatus>(this.channels);
         }

@@ -11,8 +11,8 @@ namespace AnIRC {
 	/// This class is not suitable for storing mode lists or status modes, as up to one parameter is allowed per mode.
 	/// </remarks>
     public class ModeSet : ISet<char>, IReadOnlyCollection<char> {
-        private HashSet<char> modes = new HashSet<char>();
-        private Dictionary<char, string> parameters = new Dictionary<char, string>(8);
+        private readonly HashSet<char> modes = new();
+        private readonly Dictionary<char, string> parameters = new(8);
 
 		/// <summary>Returns the number of modes in this set.</summary>
         public int Count => this.modes.Count;
@@ -44,18 +44,17 @@ namespace AnIRC {
 
 		/// <summary>Returns a string representation of the modes in this set, prefixed with a '+'.</summary>
 		public override string ToString() {
-            StringBuilder builder = new StringBuilder("+");
-            StringBuilder builder2 = new StringBuilder();
+            var builder = new StringBuilder("+");
+            var builder2 = new StringBuilder();
 
             foreach (char mode in this.modes) {
                 builder.Append(mode);
 
-                string parameter;
-                if (this.parameters.TryGetValue(mode, out parameter)) {
-                    builder2.Append(' ');
-                    builder2.Append(parameter);
-                }
-            }
+				if (this.parameters.TryGetValue(mode, out string parameter)) {
+					builder2.Append(' ');
+					builder2.Append(parameter);
+				}
+			}
 
             return builder.ToString() + builder2.ToString();
         }
@@ -71,16 +70,16 @@ namespace AnIRC {
         bool ISet<char>.Overlaps(IEnumerable<char> other) => this.modes.Overlaps(other);
         bool ISet<char>.SetEquals(IEnumerable<char> other) => this.modes.SetEquals(other);
 
-        void ICollection<char>.Add(char item) { throw new NotSupportedException("ModeCollection is read-only."); }
-        bool ISet<char>.Add(char item) { throw new NotSupportedException("ModeCollection is read-only."); }
-        void ICollection<char>.Clear() { throw new NotSupportedException("ModeCollection is read-only."); }
-        void ISet<char>.ExceptWith(IEnumerable<char> other) { throw new NotSupportedException("ModeCollection is read-only."); }
-        void ISet<char>.IntersectWith(IEnumerable<char> other) { throw new NotSupportedException("ModeCollection is read-only."); }
-        bool ICollection<char>.Remove(char item) { throw new NotSupportedException("ModeCollection is read-only."); }
-        void ISet<char>.SymmetricExceptWith(IEnumerable<char> other) { throw new NotSupportedException("ModeCollection is read-only."); }
-        void ISet<char>.UnionWith(IEnumerable<char> other) { throw new NotSupportedException("ModeCollection is read-only."); }
-        #endregion
-    }
+		void ICollection<char>.Add(char item) => throw new NotSupportedException("ModeCollection is read-only.");
+		bool ISet<char>.Add(char item) => throw new NotSupportedException("ModeCollection is read-only.");
+		void ICollection<char>.Clear() => throw new NotSupportedException("ModeCollection is read-only.");
+		void ISet<char>.ExceptWith(IEnumerable<char> other) => throw new NotSupportedException("ModeCollection is read-only.");
+		void ISet<char>.IntersectWith(IEnumerable<char> other) => throw new NotSupportedException("ModeCollection is read-only.");
+		bool ICollection<char>.Remove(char item) => throw new NotSupportedException("ModeCollection is read-only.");
+		void ISet<char>.SymmetricExceptWith(IEnumerable<char> other) => throw new NotSupportedException("ModeCollection is read-only.");
+		void ISet<char>.UnionWith(IEnumerable<char> other) => throw new NotSupportedException("ModeCollection is read-only.");
+		#endregion
+	}
 
 	/// <summary>Represents a single mode change.</summary>
     public struct ModeChange {

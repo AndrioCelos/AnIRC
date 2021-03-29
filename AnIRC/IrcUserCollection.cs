@@ -49,10 +49,10 @@ namespace AnIRC {
             if (this.TryGetValue(nickname, out var user)) {
                 if (ident != "*") user.Ident = ident;
                 if (host != "*") user.Host = host;
-                if (account != null) user.Account = (account == "*" ? null : account);
+                if (account != null) user.Account = account == "*" ? null : account;
                 if (fullName != null) user.FullName = fullName;
             } else {
-				user = new IrcUser(this.Client, nickname, ident, host, (account == "*" ? null : account), fullName) { Monitoring = monitoring };
+				user = new IrcUser(this.Client, nickname, ident, host, account == "*" ? null : account, fullName) { Monitoring = monitoring };
 				if (add) {
 					this.Add(user);
 					this.Client.OnUserAppeared(new IrcUserEventArgs(user));
@@ -78,11 +78,11 @@ namespace AnIRC {
 
         #region ICollection support
         bool ICollection<IrcUser>.IsReadOnly => true;
-        void ICollection<IrcUser>.Add(IrcUser item) { throw new NotSupportedException("IrcUserCollection is read-only."); }
-        void ICollection<IrcUser>.Clear() { throw new NotSupportedException("IrcUserCollection is read-only."); }
-        bool ICollection<IrcUser>.Contains(IrcUser item) => this.Users.ContainsValue(item);
-        bool ICollection<IrcUser>.Remove(IrcUser item) { throw new NotSupportedException("IrcUserCollection is read-only."); }
-        IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+		void ICollection<IrcUser>.Add(IrcUser item) => throw new NotSupportedException("IrcUserCollection is read-only.");
+		void ICollection<IrcUser>.Clear() => throw new NotSupportedException("IrcUserCollection is read-only.");
+		bool ICollection<IrcUser>.Contains(IrcUser item) => this.Users.ContainsValue(item);
+		bool ICollection<IrcUser>.Remove(IrcUser item) => throw new NotSupportedException("IrcUserCollection is read-only.");
+		IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
         #endregion
     }
 }

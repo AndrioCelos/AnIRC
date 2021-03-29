@@ -20,7 +20,7 @@ namespace AnIRC {
         public DateTime JoinTime { get; internal set; }
 
         /// <summary>Returns true if this user is the local user for its <see cref="IrcClient"/> object.</summary>
-        public bool IsMe => (this.Client != null && this.Client.CaseMappingComparer.Equals(this.Nickname, this.Client.Me.Nickname));
+        public bool IsMe => this.Client != null && this.Client.CaseMappingComparer.Equals(this.Nickname, this.Client.Me.Nickname);
 
         /// <summary>Creates a <see cref="IrcChannelUser"/> object representing the specified user.</summary>
         /// <param name="nickname">The user's nickname.</param>
@@ -30,8 +30,9 @@ namespace AnIRC {
         /// <param name="nickname">The user's nickname.</param>
         /// <param name="client">The IRC client that this <see cref="IrcChannelUser"/> belongs to.</param>
         /// <param name="status">The status that this user has.</param>
-        public IrcChannelUser(IrcClient client, IrcChannel channel,string nickname, ChannelStatus status) {
+        public IrcChannelUser(IrcClient client, IrcChannel channel, string nickname, ChannelStatus status) {
             this.Nickname = nickname;
+			this.Channel = channel;
             this.Client = client;
             this.Status = status;
         }
@@ -40,15 +41,12 @@ namespace AnIRC {
         /// <exception cref="System.Collections.Generic.KeyNotFoundException">This user is not known on the network.</exception>
         public IrcUser User {
             get {
-                IrcUser user;
-                this.Client.Users.TryGetValue(this.Nickname, out user);
-                return user;
+				this.Client.Users.TryGetValue(this.Nickname, out var user);
+				return user;
             }
         }
 
-        /// <summary>Returns the user's nickname and status prefixes.</summary>
-        public override string ToString() {
-            return this.Status.GetPrefixes() + this.Nickname;
-        }
-    }
+		/// <summary>Returns the user's nickname and status prefixes.</summary>
+		public override string ToString() => this.Status.GetPrefixes() + this.Nickname;
+	}
 }

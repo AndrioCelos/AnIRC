@@ -21,7 +21,7 @@ namespace AnIRC {
         /// <summary>The <see cref="IrcClient"/> that this object belongs to.</summary>
         public IrcClient Client { get; }
 
-        private HashSet<char> modes;
+        private readonly HashSet<char> modes;
 
         /// <summary>Returns true if this set contains half-voice (channel mode V).</summary>
         public bool HasHalfVoice => this.modes.Contains('V');
@@ -36,7 +36,7 @@ namespace AnIRC {
         /// <summary>Returns true if this set contains owner status (channel mode q).</summary>
         public bool HasOwner     => this.modes.Contains('q');
 
-        private static ChannelStatus[] standardModes;
+        private static readonly ChannelStatus[] standardModes;
         /// <summary>Returns a <see cref="ChannelStatus"/> object that represents half-voice (channel mode V) and is not associated with any network.</summary>
         public static ChannelStatus HalfVoice => standardModes[0];
         /// <summary>Returns a <see cref="ChannelStatus"/> object that represents voice (channel mode v) and is not associated with any network.</summary>
@@ -94,9 +94,8 @@ namespace AnIRC {
             var status = new ChannelStatus(client);
 
             foreach (var prefix in prefixes) {
-                char mode;
-                if (prefixTable.TryGetValue(prefix, out mode)) status.Add(mode);
-            }
+				if (prefixTable.TryGetValue(prefix, out char mode)) status.Add(mode);
+			}
             return status;
         }
 
@@ -113,12 +112,12 @@ namespace AnIRC {
         /// Compares this <see cref="ChannelStatus"/> object with another object and returns true if they are equal.
         /// <para>Two sets with the same highest ranking mode are considered equal regardless of lower-ranking modes.</para>
         /// </summary>
-        public override bool Equals(object other) => (this == other as ChannelStatus);
+        public override bool Equals(object other) => this == other as ChannelStatus;
         /// <summary>
         /// Compares this <see cref="ChannelStatus"/> object with another <see cref="ChannelStatus"/> object and returns true if they are equal.
         /// <para>Two sets with the same highest ranking mode are considered equal regardless of lower-ranking modes.</para>
         /// </summary>
-        public bool Equals(ChannelStatus other) => (this == other);
+        public bool Equals(ChannelStatus other) => this == other;
 
 		/// <summary>
 		///     Compares this <see cref="ChannelStatus"/> object with another <see cref="ChannelStatus"/> object and returns a value indicating their relative power level.
@@ -138,11 +137,11 @@ namespace AnIRC {
 		///         <c>user.Status >= <see cref="Halfop"/></c> is equivalent to <c>user.Status > <see cref="Voice"/></c>.</para>
 		/// </remarks>
 		public int CompareTo(ChannelStatus other) {
-            if ((object) other == null) return 1;
+            if (other is null) return 1;
 
 			var extensions = this.Client?.Extensions ?? other.Client?.Extensions ?? IrcExtensions.Default;
             foreach (var mode in extensions.allStatus) {
-                if (this.Contains(mode)) return (other.Contains(mode) ? 0 : 1);
+                if (this.Contains(mode)) return other.Contains(mode) ? 0 : 1;
                 if (other.Contains(mode)) return -1;
             }
             return 0;
@@ -164,21 +163,21 @@ namespace AnIRC {
         public override int GetHashCode() => this.ToString().GetHashCode();
 
         /// <summary>Returns the channel modes represented by this ChannelStatus object.</summary>
-        public override string ToString() => new string(this.modes.ToArray());
+        public override string ToString() => new(this.modes.ToArray());
 
 		/// <summary>
 		/// Compares this <see cref="ChannelStatus"/> object with another object and returns true if they are equal.
 		/// <para>Two sets with the same highest ranking mode are considered equal regardless of lower-ranking modes.</para>
 		/// </summary>
 		public static bool operator ==(ChannelStatus v1, ChannelStatus v2)
-            => ((object) v1 == null ? (object) v2 == null : v1.CompareTo(v2) == 0);
+            => v1 is null ? v2 is null : v1.CompareTo(v2) == 0;
 
 		/// <summary>
 		/// Compares this <see cref="ChannelStatus"/> object with another object and returns true if they are not equal.
 		/// <para>Two sets with the same highest ranking mode are considered equal regardless of lower-ranking modes.</para>
 		/// </summary>
 		public static bool operator !=(ChannelStatus v1, ChannelStatus v2)
-            => ((object) v1 == null ? (object) v2 != null : v1.CompareTo(v2) != 0);
+            => v1 is null ? v2 is object : v1.CompareTo(v2) != 0;
 
 
         /// <summary>
@@ -186,28 +185,28 @@ namespace AnIRC {
         /// <para>Two sets with the same highest ranking mode are considered equal regardless of lower-ranking modes.</para>
         /// </summary>
         public static bool operator <(ChannelStatus v1, ChannelStatus v2)
-            => ((object) v1 == null ? v2 != (object) null : v1.CompareTo(v2) < 0);
+            => v1 is null ? v2 is not null : v1.CompareTo(v2) < 0;
 
         /// <summary>
         /// Returns true if <paramref name="v1"/> represents a lower or equal status to <paramref name="v2"/>.
         /// <para>Two sets with the same highest ranking mode are considered equal regardless of lower-ranking modes.</para>
         /// </summary>
         public static bool operator <=(ChannelStatus v1, ChannelStatus v2)
-            => ((object) v1 == null || v1.CompareTo(v2) <= 0);
+            => v1 is null || v1.CompareTo(v2) <= 0;
 
         /// <summary>
         /// Returns true if <paramref name="v1"/> represents a higher or equal status to <paramref name="v2"/>.
         /// <para>Two sets with the same highest ranking mode are considered equal regardless of lower-ranking modes.</para>
         /// </summary>
         public static bool operator >=(ChannelStatus v1, ChannelStatus v2)
-            => ((object) v1 == null ? (object) v2 == null : v1.CompareTo(v2) >= 0);
+            => v1 is null ? v2 is null : v1.CompareTo(v2) >= 0;
 
         /// <summary>
         /// Returns true if <paramref name="v1"/> represents a higher status than <paramref name="v2"/>.
         /// <para>Two sets with the same highest ranking mode are considered equal regardless of lower-ranking modes.</para>
         /// </summary>
         public static bool operator >(ChannelStatus v1, ChannelStatus v2)
-            => ((object) v1 != null && v1.CompareTo(v2) > 0);
+            => v1 is not null && v1.CompareTo(v2) > 0;
 
         #region Set methods
 		/// <summary>Returns the number of modes in this set.</summary>
@@ -229,14 +228,14 @@ namespace AnIRC {
 
         #region Explicit interface implementations
         IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
-        void ICollection<char>.Add(char item) { throw new NotSupportedException("ChannelStatus is read-only."); }
-        void ICollection<char>.Clear() { throw new NotSupportedException("ChannelStatus is read-only."); }
-        bool ICollection<char>.Remove(char item) { throw new NotSupportedException("ChannelStatus is read-only."); }
-        bool ISet<char>.Add(char item) { throw new NotSupportedException("ChannelStatus is read-only."); }
-        void ISet<char>.UnionWith(IEnumerable<char> other) { throw new NotSupportedException("ChannelStatus is read-only."); }
-        void ISet<char>.IntersectWith(IEnumerable<char> other) { throw new NotSupportedException("ChannelStatus is read-only."); }
-        void ISet<char>.ExceptWith(IEnumerable<char> other) { throw new NotSupportedException("ChannelStatus is read-only."); }
-        void ISet<char>.SymmetricExceptWith(IEnumerable<char> other) { throw new NotSupportedException("ChannelStatus is read-only."); }
-        #endregion
-    }
+		void ICollection<char>.Add(char item) => throw new NotSupportedException(nameof(ChannelStatus) + " is read-only.");
+		void ICollection<char>.Clear() => throw new NotSupportedException(nameof(ChannelStatus) + " is read-only.");
+		bool ICollection<char>.Remove(char item) => throw new NotSupportedException(nameof(ChannelStatus) + " is read-only.");
+		bool ISet<char>.Add(char item) => throw new NotSupportedException(nameof(ChannelStatus) + " is read-only.");
+		void ISet<char>.UnionWith(IEnumerable<char> other) => throw new NotSupportedException(nameof(ChannelStatus) + " is read-only.");
+		void ISet<char>.IntersectWith(IEnumerable<char> other) => throw new NotSupportedException(nameof(ChannelStatus) + " is read-only.");
+		void ISet<char>.ExceptWith(IEnumerable<char> other) => throw new NotSupportedException(nameof(ChannelStatus) + " is read-only.");
+		void ISet<char>.SymmetricExceptWith(IEnumerable<char> other) => throw new NotSupportedException(nameof(ChannelStatus) + " is read-only.");
+		#endregion
+	}
 }

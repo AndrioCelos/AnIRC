@@ -41,7 +41,6 @@
         SaslAuthenticationFailed
     }
 
-#pragma warning disable 1591  // Missing XML documentation
     /// <summary>
     /// Specifies a user's gender.
     /// </summary>
@@ -51,7 +50,6 @@
         Female,
         Bot
     }
-#pragma warning restore 1591
 
     /// <summary>Used to report the state of the IRC client.</summary>
     public enum IrcClientState {

@@ -400,10 +400,10 @@ namespace AnIRC {
 
         /// <summary>Provides access to RPL_ISUPPORT extensions supported by the server.</summary>
         public IrcExtensions Extensions { get; protected internal set; }
-		internal Dictionary<string, IrcCapability> supportedCapabilities = new Dictionary<string, IrcCapability>();
+		internal Dictionary<string, IrcCapability> supportedCapabilities = new();
 		/// <summary>Returns the set of IRCv3 capabilities supported by the server.</summary>
 		public ReadOnlyDictionary<string, IrcCapability> SupportedCapabilities { get; }
-		internal Dictionary<string, IrcCapability> enabledCapabilities = new Dictionary<string, IrcCapability>();
+		internal Dictionary<string, IrcCapability> enabledCapabilities = new();
 		/// <summary>Returns the set of IRCv3 capabilities currently enabled.</summary>
 		public ReadOnlyDictionary<string, IrcCapability> EnabledCapabilities { get; }
 
@@ -415,18 +415,18 @@ namespace AnIRC {
         /// <summary>Our current user modes.</summary>
         public ModeSet UserModes { get; protected internal set; } = new ModeSet();
         /// <summary>The list of channels we are on.</summary>
-        public IrcChannelCollection Channels => Me.Channels;
+        public IrcChannelCollection Channels => this.Me.Channels;
         /// <summary>The current state of the IRC client.</summary>
         public IrcClientState State {
-            get { return this.state; }
-            protected internal set {
-                IrcClientState oldState = this.state;
-                this.state = value;
-                this.OnStateChanged(new StateEventArgs(oldState, value));
-            }
-        }
+			get => this.state;
+			protected internal set {
+				var oldState = this.state;
+				this.state = value;
+				this.OnStateChanged(new StateEventArgs(oldState, value));
+			}
+		}
 		/// <summary>Returns true if additional messages has been received that are not yet being processed.</summary>
-        public bool DataAvailable => this.tcpClient?.GetStream()?.DataAvailable ?? false;
+		public bool DataAvailable => this.tcpClient?.GetStream()?.DataAvailable ?? false;
 
         /// <summary>Contains SHA-256 hashes of TLS certificates that should be accepted.</summary>
         public List<string> TrustedCertificates { get; private set; } = new List<string>();
@@ -440,7 +440,7 @@ namespace AnIRC {
 		/// <summary>If the MONITOR or WATCH command is supported, returns a <see cref="AnIRC.MonitorList"/> instance that can be used to manipulate the monitor list.</summary>
 		public MonitorList MonitorList { get; }
 
-        internal List<AsyncRequest> asyncRequests = new List<AsyncRequest>();
+        internal List<AsyncRequest> asyncRequests = new();
 
 		/// <summary>Returns the list of pending async requests for this <see cref="IrcClient"/>.</summary>
         public ReadOnlyCollection<AsyncRequest> AsyncRequests;
@@ -455,20 +455,20 @@ namespace AnIRC {
         private Thread readThread;
         private int pingTimeout = 60;
         private bool pinged;
-        private Timer pingTimer = new Timer(60000);
-        private object receiveLock = new object();
-        private object Lock = new object();
+        private readonly Timer pingTimer = new(60000);
+        private readonly object receiveLock = new();
+        private readonly object Lock = new();
 
         private IrcClientState state;
 		/// <summary>Stores <see cref="DisconnectReason"/> values that don't cause the connection to be closed immediately.</summary>
         protected internal DisconnectReason disconnectReason;
         internal bool accountKnown;  // Some servers send both 330 and 307 in WHOIS replies. We need to ignore the 307 in that case.
-		internal List<string> pendingCapabilities = new List<string>();
-        internal Dictionary<string, HashSet<string>> pendingNames = new Dictionary<string, HashSet<string>>();
+		internal List<string> pendingCapabilities = new();
+        internal Dictionary<string, HashSet<string>> pendingNames = new();
 		internal HashSet<string> pendingMonitor;
 
 		/// <summary>Contains functions used to handle replies received from the server.</summary>
-		protected internal Dictionary<string, IrcMessageHandler> MessageHandlers = new Dictionary<string, IrcMessageHandler>(StringComparer.OrdinalIgnoreCase);
+		protected internal Dictionary<string, IrcMessageHandler> MessageHandlers = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>Creates a new IRCClient object with no network name and the default encoding and ping timeout.</summary>
         /// <param name="localUser">An IRCLocalUser instance to represent the local user.</param>
@@ -518,31 +518,30 @@ namespace AnIRC {
         /// <summary>Returns or sets a value specifying whether the connection is or is to be made via TLS.</summary>
         /// <exception cref="InvalidOperationException">An attempt was made to set this property while the client is connected.</exception>
         public bool SSL {
-            get { return this.ssl; }
-            set {
-                if (this.State >= IrcClientState.SslHandshaking)
-                    throw new InvalidOperationException("This property cannot be set while the client is connected.");
-                this.ssl = value;
-            }
-        }
+			get => this.ssl;
+			set {
+				if (this.State >= IrcClientState.SslHandshaking)
+					throw new InvalidOperationException("This property cannot be set while the client is connected.");
+				this.ssl = value;
+			}
+		}
 
-        /// <summary>Returns or sets the ping timeout, in seconds.</summary>
-        public int PingTimeout {
-            get { return this.pingTimeout; }
-            set {
-                this.pingTimeout = value;
-                bool flag = value == 0;
-                if (value == 0)
-                    this.pingTimer.Enabled = false;
-                else {
-                    this.pingTimer.Interval = value * 1000;
-                    if (this.State >= IrcClientState.Connecting) this.pingTimer.Enabled = true;
-                }
-            }
-        }
+		/// <summary>Returns or sets the ping timeout, in seconds.</summary>
+		public int PingTimeout {
+			get => this.pingTimeout;
+			set {
+				this.pingTimeout = value;
+				if (value == 0)
+					this.pingTimer.Enabled = false;
+				else {
+					this.pingTimer.Interval = value * 1000;
+					if (this.State >= IrcClientState.Connecting) this.pingTimer.Enabled = true;
+				}
+			}
+		}
 
-        /// <summary>Returns or sets the quit message that will be sent in the event of a ping timeout.</summary>
-        public string PingTimeoutMessage { get; set; } = "Ping timeout";
+		/// <summary>Returns or sets the quit message that will be sent in the event of a ping timeout.</summary>
+		public string PingTimeoutMessage { get; set; } = "Ping timeout";
 
         private void PingTimeout_Elapsed(object sender, ElapsedEventArgs e) {
             lock (this.pingTimer) {
@@ -610,8 +609,8 @@ namespace AnIRC {
                     const SslProtocols protocols = SslProtocols.Tls12 | SslProtocols.Tls11 | SslProtocols.Tls;  // SSLv3 has gone to the dogs.
                     this.sslStream.AuthenticateAsClient(this.Address ?? (string) result.AsyncState, null, protocols, true);
 
-                    this.reader = new StreamReader(this.sslStream, Encoding);
-                    this.writer = new StreamWriter(this.sslStream, Encoding);
+                    this.reader = new StreamReader(this.sslStream, this.Encoding);
+                    this.writer = new StreamWriter(this.sslStream, this.Encoding);
 
                     this.State = IrcClientState.Registering;
                     this.SetDefaultChannelModes();
@@ -635,8 +634,8 @@ namespace AnIRC {
                     return;
                 }
             } else {
-                this.reader = new StreamReader(this.tcpClient.GetStream(), Encoding);
-                this.writer = new StreamWriter(this.tcpClient.GetStream(), Encoding);
+                this.reader = new StreamReader(this.tcpClient.GetStream(), this.Encoding);
+                this.writer = new StreamWriter(this.tcpClient.GetStream(), this.Encoding);
 
                 this.readThread = new Thread(this.ReadLoop) { Name = "IrcClient read thread: " + (this.NetworkName ?? this.Address) };
                 this.readThread.Start();
@@ -670,7 +669,7 @@ namespace AnIRC {
             }
 
             // Raise the event.
-            ValidateCertificateEventArgs e = new ValidateCertificateEventArgs(certificate, chain, sslPolicyErrors, valid);
+            var e = new ValidateCertificateEventArgs(certificate, chain, sslPolicyErrors, valid);
             this.OnValidateCertificate(e);
             return e.Valid;
         }
@@ -680,8 +679,8 @@ namespace AnIRC {
             if (this.Password != null)
                 this.Send("PASS :" + this.Password);
             this.Send("CAP LS 302");
-            this.Send("NICK " + Me.Nickname);
-            this.Send("USER " + Me.Ident + " 4 * :" + Me.FullName);
+            this.Send("NICK " + this.Me.Nickname);
+            this.Send("USER " + this.Me.Ident + " 4 * :" + this.Me.FullName);
         }
 
         /// <summary>Ungracefully closes the connection to the IRC network.</summary>
@@ -699,7 +698,7 @@ namespace AnIRC {
                 if (request.CanTimeout) {
                     if (this.asyncRequestTimer == null) {
                         this.asyncRequestTimer = new Timer(30e+3) { AutoReset = false };
-                        this.asyncRequestTimer.Elapsed += asyncRequestTimer_Elapsed;
+                        this.asyncRequestTimer.Elapsed += this.asyncRequestTimer_Elapsed;
                         this.asyncRequestTimer.Start();
                     } else {
                         this.asyncRequestTimer.Stop();
@@ -725,8 +724,8 @@ namespace AnIRC {
                 string line;
                 try {
                     if (this.pingTimeout != 0) this.pingTimer.Start();
-                    line = reader.ReadLine();
-                } catch (Exception ex) when (ex is IOException || ex is SocketException || ex is ObjectDisposedException) {
+                    line = this.reader.ReadLine();
+                } catch (Exception ex) when (ex is IOException or SocketException or ObjectDisposedException) {
                     if (this.State == IrcClientState.Disconnected) break;
                     this.writer.Close();
                     this.pingTimer.Stop();
@@ -746,30 +745,26 @@ namespace AnIRC {
         }
 
         /// <summary>The UNIX epoch, used for timestamps on IRC, which is midnight UTC of 1 January 1970.</summary>
-        public static DateTime Epoch => new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        /// <summary>Decodes a UNIX timestamp into a DateTime value.</summary>
-        /// <param name="unixTime">The UNIX timestamp to decode.</param>
-        /// <returns>The DateTime represented by the specified UNIX timestamp.</returns>
-        public static DateTime DecodeUnixTime(double unixTime) {
-            return Epoch.AddSeconds(unixTime);
-        }
-        /// <summary>Encodes a DateTime value into a UNIX timestamp.</summary>
-        /// <param name="time">The DateTime value to encode.</param>
-        /// <returns>The UNIX timestamp representation of the specified DateTime value.</returns>
-        public static double EncodeUnixTime(DateTime time) {
-            return (time.ToUniversalTime() - Epoch).TotalSeconds;
-        }
+        public static DateTime Epoch => new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		/// <summary>Decodes a UNIX timestamp into a DateTime value.</summary>
+		/// <param name="unixTime">The UNIX timestamp to decode.</param>
+		/// <returns>The DateTime represented by the specified UNIX timestamp.</returns>
+		public static DateTime DecodeUnixTime(double unixTime) => Epoch.AddSeconds(unixTime);
+		/// <summary>Encodes a DateTime value into a UNIX timestamp.</summary>
+		/// <param name="time">The DateTime value to encode.</param>
+		/// <returns>The UNIX timestamp representation of the specified DateTime value.</returns>
+		public static double EncodeUnixTime(DateTime time) => (time.ToUniversalTime() - Epoch).TotalSeconds;
 
-        /// <summary>Handles or simulates a message received from the IRC server.</summary>
-        /// <param name="data">The message received or to simulate.</param>
-        public virtual void ReceivedLine(string data) {
+		/// <summary>Handles or simulates a message received from the IRC server.</summary>
+		/// <param name="data">The message received or to simulate.</param>
+		public virtual void ReceivedLine(string data) {
             lock (this.receiveLock) {
                 var line = IrcLine.Parse(data);
 
 				int i; bool found = false;
 				lock (this.asyncRequests) {
 					for (i = 0; i < this.asyncRequests.Count; ++i) {
-						if (asyncRequestCheck(line, this.asyncRequests[i])) {
+						if (this.asyncRequestCheck(line, this.asyncRequests[i])) {
 							found = true;
 							break;
 						}
@@ -779,18 +774,17 @@ namespace AnIRC {
 				this.OnRawLineReceived(new IrcLineEventArgs(data, line, found));
 				if (this.readAsyncTaskSource != null) this.readAsyncTaskSource.SetResult(line);
 
-                IrcMessageHandler handler;
-                if (this.MessageHandlers.TryGetValue(line.Message, out handler))
-                    handler?.Invoke(this, line);
-                else
-                    this.OnRawLineUnhandled(new IrcLineEventArgs(data, line, found));
+				if (this.MessageHandlers.TryGetValue(line.Message, out var handler))
+					handler?.Invoke(this, line);
+				else
+					this.OnRawLineUnhandled(new IrcLineEventArgs(data, line, found));
 
-                if (found) {
+				if (found) {
                     lock (this.asyncRequests) {
 						var skipTypes = new HashSet<Type>();
                         for (; i < this.asyncRequests.Count; ++i) {
                             var asyncRequest = this.asyncRequests[i];
-							if (!skipTypes.Contains(asyncRequest.GetType()) && asyncRequestCheck(line, asyncRequest, out bool final)) {
+							if (!skipTypes.Contains(asyncRequest.GetType()) && this.asyncRequestCheck(line, asyncRequest, out bool final)) {
 								var result = asyncRequest.OnReply(line, ref final);
 								if (result) skipTypes.Add(asyncRequest.GetType());
 
@@ -825,7 +819,7 @@ namespace AnIRC {
 		/// <exception cref="InvalidOperationException">The client is not connected to a server.</exception>
 		public virtual void Send(string data) {
             lock (this.Lock) {
-                if (!tcpClient.Connected) throw new InvalidOperationException("The client is not connected.");
+                if (!this.tcpClient.Connected) throw new InvalidOperationException("The client is not connected.");
 
                 var e = new RawLineEventArgs(data);
                 this.OnRawLineSent(e);
@@ -841,27 +835,23 @@ namespace AnIRC {
             }
         }
 
-        /// <summary>Sends a raw message to the IRC server.</summary>
-        /// <param name="format">The format of the message, as per <see cref="string.Format(string, object[])"/>.</param>
-        /// <param name="parameters">The parameters to include in the message.</param>
-        /// <exception cref="InvalidOperationException">The client is not connected to a server.</exception>
-        public virtual void Send(string format, params object[] parameters) {
-            this.Send(string.Format(format, parameters));
-        }
+		/// <summary>Sends a raw message to the IRC server.</summary>
+		/// <param name="format">The format of the message, as per <see cref="string.Format(string, object[])"/>.</param>
+		/// <param name="parameters">The parameters to include in the message.</param>
+		/// <exception cref="InvalidOperationException">The client is not connected to a server.</exception>
+		public virtual void Send(string format, params object[] parameters) => this.Send(string.Format(format, parameters));
 
-        /// <summary>Removes mIRC formatting codes from a string.</summary>
-        /// <param name="message">The string to strip.</param>
-        /// <returns>A copy of the string with mIRC formatting codes removed.</returns>
-        public static string RemoveCodes(string message) {
-            Regex regex = new Regex(@"\x02|\x0F|\x16|\x1C|\x1F|\x03(\d{0,2}(,\d{1,2})?)?");
+		/// <summary>Removes mIRC formatting codes from a string.</summary>
+		/// <param name="message">The string to strip.</param>
+		/// <returns>A copy of the string with mIRC formatting codes removed.</returns>
+		public static string RemoveCodes(string message) {
+            var regex = new Regex(@"\x02|\x0F|\x16|\x1C|\x1F|\x03(\d{0,2}(,\d{1,2})?)?");
             message = regex.Replace(message, "");
             return message;
         }
 
 		/// <summary>Sets the <see cref="IrcExtensions.ChanModes"/> property of <see cref="Extensions"/> to the default value.</summary>
-        protected virtual void SetDefaultChannelModes() {
-            this.Extensions.ChanModes = ChannelModes.RFC1459;
-        }
+		protected virtual void SetDefaultChannelModes() => this.Extensions.ChanModes = ChannelModes.RFC1459;
 
 		/// <summary>Sets the contents of <see cref="SupportedUserModes"/> to the defaults.</summary>
 		protected virtual void SetDefaultUserModes() {
@@ -897,30 +887,30 @@ namespace AnIRC {
 
                     switch (this.Extensions.ChanModes.ModeType(c)) {
                         case 'S':
-                            parameter = (enumerator.MoveNext() ? enumerator.Current : "");
-                            this.HandleChannelModeStatus(sender, channel, direction, c, parameter, modeMessage);
+                            parameter = enumerator.MoveNext() ? enumerator.Current : "";
+							HandleChannelModeStatus(sender, channel, direction, c, parameter, modeMessage);
                             break;
                         case 'A':
-                            parameter = (enumerator.MoveNext() ? enumerator.Current : "");
-                            this.HandleChannelModeList(sender, channel, direction, c, parameter, modeMessage);
+                            parameter = enumerator.MoveNext() ? enumerator.Current : "";
+							HandleChannelModeList(sender, channel, direction, c, parameter, modeMessage);
                             break;
                         case 'D':
                             parameter = null;
-                            this.HandleChannelMode(sender, channel, direction, c, null, modeMessage);
+							HandleChannelMode(sender, channel, direction, c, null, modeMessage);
                             break;
                         case 'B':
-                            parameter = (enumerator.MoveNext() ? enumerator.Current : "");
+                            parameter = enumerator.MoveNext() ? enumerator.Current : "";
                             if (direction && !modeMessage && channel.Modes.Contains(c)) oldParameter = channel.Modes.GetParameter(c);
-                            this.HandleChannelMode(sender, channel, direction, c, parameter, modeMessage);
+							HandleChannelMode(sender, channel, direction, c, parameter, modeMessage);
                             break;
                         case 'C':
-                            parameter = (direction ? (enumerator.MoveNext() ? enumerator.Current : "") : null);
+                            parameter = direction ? (enumerator.MoveNext() ? enumerator.Current : "") : null;
                             if (direction && !modeMessage && channel.Modes.Contains(c)) oldParameter = channel.Modes.GetParameter(c);
-                            this.HandleChannelMode(sender, channel, direction, c, parameter, modeMessage);
+							HandleChannelMode(sender, channel, direction, c, parameter, modeMessage);
                             break;
                         default:
                             parameter = null;
-                            this.HandleChannelMode(sender, channel, direction, c, null, modeMessage);
+							HandleChannelMode(sender, channel, direction, c, null, modeMessage);
                             break;
                     }
 
@@ -948,21 +938,18 @@ namespace AnIRC {
         }
 
 		/// <summary>Handles a list mode change.</summary>
-        protected internal void HandleChannelModeList(IrcUser sender, IrcChannel channel, bool direction, char mode, string parameter, bool events) {
+        internal protected static void HandleChannelModeList(IrcUser sender, IrcChannel channel, bool direction, char mode, string parameter, bool events) {
             // TODO: implement internal mode lists.
         }
 		/// <summary>Handles a status mode change.</summary>
-		protected internal void HandleChannelModeStatus(IrcUser sender, IrcChannel channel, bool direction, char mode, string parameter, bool events) {
-            IrcChannelUser user;
-            if (channel != null && channel.Users.TryGetValue(parameter, out user)) {
-                if (direction) user.Status.Add(mode);
-                else user.Status.Remove(mode);
-            } else {
-                user = new IrcChannelUser(this, channel, parameter);
-            }
-        }
-        private void HandleChannelMode(IrcUser sender, IrcChannel channel, bool direction, char mode, string parameter, bool events) {
-            if (direction) {
+		internal protected static void HandleChannelModeStatus(IrcUser sender, IrcChannel channel, bool direction, char mode, string parameter, bool events) {
+			if (channel != null && channel.Users.TryGetValue(parameter, out var user)) {
+				if (direction) user.Status.Add(mode);
+				else user.Status.Remove(mode);
+			}
+		}
+		private static void HandleChannelMode(IrcUser sender, IrcChannel channel, bool direction, char mode, string parameter, bool events) {
+			if (direction) {
                 if (parameter != null) channel.Modes.Add(mode, parameter);
                 else channel.Modes.Add(mode);
             } else channel.Modes.Remove(mode);
@@ -972,7 +959,7 @@ namespace AnIRC {
             foreach (var change in e.Modes) {
                 switch (this.Extensions.ChanModes.ModeType(change.Mode)) {
                     case 'A':
-                        var e2 = new ChannelListChangedEventArgs(e.Sender, e.Channel, change.Direction, change.Mode, change.Parameter, e.Channel.Users.Matching(change.Parameter));
+                        var e2 = new ChannelListChangedEventArgs(e.Sender, e.Channel, change.Direction, change.Mode, change.Parameter);
                         if (change.Mode == 'b') {
                             if (change.Direction) this.OnChannelBan(e2);
                             else this.OnChannelUnBan(e2);
@@ -1040,28 +1027,27 @@ namespace AnIRC {
             channel.Users.Remove(user.Nickname);
 
             user.Channels.Remove(channel);
-            if (user == Me) {
+            if (user == this.Me) {
                 var disappearedUsers = new List<IrcUser>();
                 foreach (var channelUser in channel.Users) {
                     channelUser.User.Channels.Remove(channel);
                     if (!channelUser.User.IsSeen) disappearedUsers.Add(channelUser.User);
                 }
                 return disappearedUsers.ToArray();
-            } else if (!user.IsSeen) {
-                return new[] { user };
-            } else
-                return null;
-        }
+            } else {
+				return user.IsSeen ? null : new[] { user };
+			}
+		}
 
         internal void SetCaseMappingComparer() {
-            switch (this.Extensions.CaseMapping) {
-                case "ascii"         : this.CaseMappingComparer = new IrcStringComparer(CaseMappingMode.ASCII); break;
-                case "strict-rfc1459": this.CaseMappingComparer = new IrcStringComparer(CaseMappingMode.StrictRFC1459); break;
-                default              : this.CaseMappingComparer = new IrcStringComparer(CaseMappingMode.RFC1459); break;
-            }
+			this.CaseMappingComparer = this.Extensions.CaseMapping switch {
+				"ascii"          => new IrcStringComparer(CaseMappingMode.ASCII),
+				"strict-rfc1459" => new IrcStringComparer(CaseMappingMode.StrictRFC1459),
+				_                => new IrcStringComparer(CaseMappingMode.RFC1459),
+			};
 
-            // We need to rebuild the hash tables after setting this.
-            var oldUsers = this.Users; IrcChannelCollection oldChannels;
+			// We need to rebuild the hash tables after setting this.
+			var oldUsers = this.Users; IrcChannelCollection oldChannels;
             this.Users = new IrcUserCollection(this);
             foreach (var user in oldUsers) {
                 this.Users.Add(user);
@@ -1087,7 +1073,7 @@ namespace AnIRC {
         public IEnumerable<IrcChannelUser> FindMatchingUsers(string channel, string hostmask)
             => this.Channels[channel].Users.Matching(hostmask);
 
-		private static HashSet<char> breakingCharacters = new HashSet<char>() {
+		private static readonly HashSet<char> breakingCharacters = new() {
 			'\t', ' ', '\u1680', '\u180E', '\u2000', '\u2001', '\u2002', '\u2003', '\u2004', '\u2005',
 			'\u2006', '\u2008', '\u2009', '\u200A', '\u200B', '\u200C', '\u200D', '\u205F', '\u3000'
 		};
@@ -1109,9 +1095,9 @@ namespace AnIRC {
         /// If the message is already small enough to fit into one line, only <paramref name="message"/> itself is yielded.
         /// </returns>
         public static IEnumerable<string> SplitMessage(string message, int maxLength, Encoding encoding) {
-            if (message == null) throw new ArgumentException("message");
-            if (encoding == null) throw new ArgumentException("encoding");
-            if (maxLength <= 0) throw new ArgumentOutOfRangeException("maxLength", "maxLength must be positive.");
+            if (message == null) throw new ArgumentNullException(nameof(message));
+            if (encoding == null) throw new ArgumentNullException(nameof(encoding));
+            if (maxLength <= 0) throw new ArgumentOutOfRangeException(nameof(maxLength), nameof(maxLength) + " must be positive.");
 
             if (encoding.GetByteCount(message) <= maxLength) {
                 yield return message;
@@ -1128,7 +1114,7 @@ namespace AnIRC {
 						if (breakingCharacters.Contains(message[pos])) break;
 					}
 
-					string part2 = message.Substring(messageStart, pos - messageStart);
+					string part2 = message[messageStart..pos];
 
 					// Skip repeated breaking characters.
 					for (++pos; pos < message.Length; ++pos) {
@@ -1140,7 +1126,7 @@ namespace AnIRC {
 						if (part == null) {
 							// If a single word exceeds the limit, we must break it up.
 							for (pos = messageStart + 1; pos < message.Length; ++pos) {
-								part2 = message.Substring(messageStart, pos - messageStart);
+								part2 = message[messageStart..pos];
 								if (encoding.GetByteCount(part2) > maxLength) break;
 								part = part2;
 							}
@@ -1160,13 +1146,10 @@ namespace AnIRC {
             }
         }
 
-        /// <summary>Determines whether the specified string is a valid channel name.</summary>
-        /// <param name="target">The string to check.</param>
-        /// <returns>True if the specified string is a valid channel name; false if it is not.</returns>
-        public bool IsChannel(string target) {
-            if (target == null || target == "") return false;
-            return this.Extensions.ChannelTypes.Contains(target[0]);
-        }
+		/// <summary>Determines whether the specified string is a valid channel name.</summary>
+		/// <param name="target">The string to check.</param>
+		/// <returns>True if the specified string is a valid channel name; false if it is not.</returns>
+		public bool IsChannel(string target) => target != null && target != "" && this.Extensions.ChannelTypes.Contains(target[0]);
 
 		#region Async methods
 		/// <summary>Waits for the next line from the server.</summary>
@@ -1231,10 +1214,9 @@ namespace AnIRC {
 			if (this.state < IrcClientState.ReceivingServerInfo) throw new InvalidOperationException("The client must be registered to perform a WHO request.");
 			if (!this.Extensions.SupportsWhox) throw new NotSupportedException("The server does not support the WHOX extension.");
 
-			var sortedFields = new SortedSet<WhoxField>(fields.Select(v => {
-				if (v <= 0 || v > WhoxField.FullName) throw new ArgumentException(nameof(fields) + " contains invalid values.", nameof(fields));
-				return v;
-			})).ToArray();
+			var sortedFields = new SortedSet<WhoxField>(fields.Select(v => v is > 0 and <= WhoxField.FullName
+					? v
+					: throw new ArgumentException(nameof(fields) + " contains invalid values.", nameof(fields)))).ToArray();
 
 			if (sortedFields.Length == 0) throw new ArgumentException("Cannot request no fields with WHOX.", nameof(fields));
 			if (sortedFields[0] == WhoxField.QueryType && queryType == null)
@@ -1264,7 +1246,7 @@ namespace AnIRC {
 				}
 			}
 			if (queryType != null) {
-				requestBuilder.Append(",");
+				requestBuilder.Append(',');
 				requestBuilder.Append(queryType);
 			}
 			this.Send(requestBuilder.ToString());
@@ -1289,7 +1271,7 @@ namespace AnIRC {
 			if (nickname == null) throw new ArgumentNullException(nameof(nickname));
 			if (this.state < IrcClientState.ReceivingServerInfo) throw new InvalidOperationException("The client must be registered to perform a WHOIS request.");
 
-			var request = this.AsyncRequests.FirstOrDefault(r => r is AsyncRequest.WhoisAsyncRequest && this.CaseMappingComparer.Equals(((AsyncRequest.WhoisAsyncRequest) r).Target, nickname));
+			var request = this.AsyncRequests.FirstOrDefault(r => r is AsyncRequest.WhoisAsyncRequest r1 && this.CaseMappingComparer.Equals(r1.Target, nickname));
 			if (request == null) {
 				request = new AsyncRequest.WhoisAsyncRequest(this, nickname);
 				this.AddAsyncRequest(request);

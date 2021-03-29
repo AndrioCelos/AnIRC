@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 
@@ -22,7 +23,7 @@ namespace AnIRC {
         /// <summary>The status modes available, in descending order. These are applied to users on a channel, so always take a parameter.</summary>
         public ReadOnlyCollection<char> Status { get; private set; }
 
-        private Dictionary<char, char> modes = new Dictionary<char, char>(32);
+        private readonly Dictionary<char, char> modes = new(32);
 
 		/// <summary>Initializes a new <see cref="ChannelModes"/> set with the specified modes.</summary>
 		/// <param name="typeA">A list of mode characters to add as type A modes. May be null.</param>
@@ -38,7 +39,7 @@ namespace AnIRC {
             if (status != null)
                 this.setStatusModes(status);
             else
-                this.Status = new ReadOnlyCollection<char>(new char[0]);
+                this.Status = new ReadOnlyCollection<char>(Array.Empty<char>());
         }
 
         internal void setStatusModes(IEnumerable<char> modes) {
@@ -51,21 +52,17 @@ namespace AnIRC {
 		/// <summary>Returns a <see cref="ChannelModes"/> object representing the standard modes defined by RFC 2811. These modes are Ibe,k,l,aimnpqsrt and ov.</summary>
 		public static ChannelModes RFC2811 { get; } = new ChannelModes("Ibe", "k", "l", "aimnpqrst", "ov");
 
-        /// <summary>Returns the type of a given mode character, as 'A', 'B', 'C', 'D', 'S' or the null character if the given mode is not listed.</summary>
-        /// <param name="mode">The mode character to search for.</param>
-        /// <returns>'A', 'B', 'C', 'D' or 'S' if the given mode belongs to the corresponding category, or the null character ('\0') if the given mode is not listed.</returns>
-        public char ModeType(char mode) {
-            char c;
-            if (this.modes.TryGetValue(mode, out c)) return c;
-            return '\0';
-        }
+		/// <summary>Returns the type of a given mode character, as 'A', 'B', 'C', 'D', 'S' or the null character if the given mode is not listed.</summary>
+		/// <param name="mode">The mode character to search for.</param>
+		/// <returns>'A', 'B', 'C', 'D' or 'S' if the given mode belongs to the corresponding category, or the null character ('\0') if the given mode is not listed.</returns>
+		public char ModeType(char mode) => this.modes.TryGetValue(mode, out char c) ? c : '\0';
 
 		/// <summary>Returns the type A, B, C, D and status modes in this set in the format of the ISUPPORT token (comma-separated).</summary>
-        public override string ToString() {
-            var lists = new[] { new List<char>(), new List<char>(), new List<char>(), new List<char>() };
+		public override string ToString() {
+            var lists = new List<char>[] { new(), new(), new(), new() };
 
             foreach (var mode in this.modes) {
-                if (mode.Value >= 'A' && mode.Value <= 'D') lists[mode.Value - 'A'].Add(mode.Key);
+                if (mode.Value is >= 'A' and <= 'D') lists[mode.Value - 'A'].Add(mode.Key);
             }
 
             lists[0].Sort();

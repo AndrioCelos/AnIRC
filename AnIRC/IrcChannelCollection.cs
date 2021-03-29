@@ -46,19 +46,15 @@ namespace AnIRC {
         public void CopyTo(IrcChannel[] array, int startIndex) => this.Channels.Values.CopyTo(array, startIndex);
 
 		/// <summary>Returns the <see cref="IrcChannel"/> object representing the channel with the specified name, creating one if necessary.</summary>
-        internal IrcChannel Get(string name) {
-            IrcChannel channel;
-            if (this.TryGetValue(name, out channel)) return channel;
-            return new IrcChannel(this.Client, name);
-        }
+		internal IrcChannel Get(string name) => this.TryGetValue(name, out var channel) ? channel : new IrcChannel(this.Client, name);
 
-        #region ICollection support
-        bool ICollection<IrcChannel>.IsReadOnly => true;
-        void ICollection<IrcChannel>.Add(IrcChannel item) { throw new NotSupportedException("IrcChannelCollection is read-only."); }
-        void ICollection<IrcChannel>.Clear() { throw new NotSupportedException("IrcChannelCollection is read-only."); }
-        bool ICollection<IrcChannel>.Contains(IrcChannel item) => this.Channels.ContainsValue(item);
-        bool ICollection<IrcChannel>.Remove(IrcChannel item) { throw new NotSupportedException("IrcChannelCollection is read-only."); }
-        IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+		#region ICollection support
+		bool ICollection<IrcChannel>.IsReadOnly => true;
+		void ICollection<IrcChannel>.Add(IrcChannel item) => throw new NotSupportedException("IrcChannelCollection is read-only.");
+		void ICollection<IrcChannel>.Clear() => throw new NotSupportedException("IrcChannelCollection is read-only.");
+		bool ICollection<IrcChannel>.Contains(IrcChannel item) => this.Channels.ContainsValue(item);
+		bool ICollection<IrcChannel>.Remove(IrcChannel item) => throw new NotSupportedException("IrcChannelCollection is read-only.");
+		IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
         #endregion
     }
 }

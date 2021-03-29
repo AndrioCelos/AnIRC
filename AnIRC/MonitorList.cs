@@ -136,8 +136,8 @@ namespace AnIRC {
 			}
 		}
 
-		private void checkNickname(string nickname) {
-			if (nickname.Any(c => c == ' ' || c == ',' || c == '\r' || c == '\n'))
+		private static void checkNickname(string nickname) {
+			if (nickname.Any(c => c is ' ' or ',' or '\r' or '\n'))
 				throw new ArgumentException("Nickname contains invalid characters.", nameof(nickname));
 		}
 
