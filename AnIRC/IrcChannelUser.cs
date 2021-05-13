@@ -5,7 +5,7 @@ namespace AnIRC {
 	/// <summary>
 	/// Represents a user's presence on a channel.
 	/// </summary>
-	public class IrcChannelUser {
+	public class IrcChannelUser : INamedEntity {
 		/// <summary>The <see cref="IrcClient"/> that this <see cref="IrcChannelUser"/> belongs to.</summary>
 		public IrcClient Client { get; }
 		/// <summary>The <see cref="IrcChannel"/> that this <see cref="IrcChannelUser"/> belongs to.</summary>
@@ -41,6 +41,8 @@ namespace AnIRC {
 		/// <summary>Returns the User object that represents this user.</summary>
 		/// <exception cref="System.Collections.Generic.KeyNotFoundException">This user is not known on the network.</exception>
 		public IrcUser User => this.Client.Users[this.Nickname];
+
+		string INamedEntity.Name => this.Nickname;
 
 		/// <summary>Returns the user's nickname and status prefixes.</summary>
 		public override string ToString() => this.Status.GetPrefixes() + this.Nickname;

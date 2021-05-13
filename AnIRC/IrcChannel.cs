@@ -6,7 +6,7 @@ namespace AnIRC {
 	/// <summary>
 	/// Represents an IRC channel.
 	/// </summary>
-	public class IrcChannel : IrcMessageTarget, INotifyPropertyChanged {
+	public class IrcChannel : IrcMessageTarget, INamedEntity, INotifyPropertyChanged {
 		public override string Target => this.Name;
 
 		/// <summary>The name of the channel.</summary>

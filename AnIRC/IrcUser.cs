@@ -11,7 +11,7 @@ namespace AnIRC {
 	/// <summary>
 	/// Represents a user on IRC.
 	/// </summary>
-	public class IrcUser : IrcMessageTarget, INotifyPropertyChanged {
+	public class IrcUser : IrcMessageTarget, INamedEntity, INotifyPropertyChanged {
 		/// <summary>Returns the <see cref="IrcClient"/> that this user belongs to.</summary>
 		public override IrcClient Client { get; }
 
@@ -97,6 +97,8 @@ namespace AnIRC {
 
 		/// <summary>Returns this user's username and hostname, separated by a '@'.</summary>
 		public string UserAndHost => this.Ident + "@" + this.Host;
+
+		string INamedEntity.Name => this.Nickname;
 
 		/// <summary>
 		/// Creates a new <see cref="IrcUser"/> with the specified identity data.
