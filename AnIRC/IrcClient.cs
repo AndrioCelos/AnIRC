@@ -20,6 +20,7 @@ using Timer = System.Timers.Timer;
 
 using static AnIRC.Replies;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 namespace AnIRC {
 	/// <summary>Represents a method that handles a client-bound IRC message.</summary>
@@ -31,214 +32,221 @@ namespace AnIRC {
 	/// Manages a connection to an IRC network.
 	/// </summary>
 	public class IrcClient {
+		internal const string UNKNOWN_AWAY_MESSAGE = "Unknown away message";
+		internal const string UNKNOWN_QUIT_MESSAGE = "Quit";
+		internal const string QUIT_MESSAGE_SASL_AUTHENTICATION_NOT_SUPPORTED = "SASL authentication is required but not supported by the server.";
+		internal const string QUIT_MESSAGE_SASL_AUTHENTICATION_MECHANISM_NOT_SUPPORTED = "SASL authentication is required but no shared mechanisms are available.";
+		internal const string QUIT_MESSAGE_SASL_AUTHENTICATION_NOT_ENABLED = "SASL authentication is required but was not enabled.";
+		internal const string QUIT_MESSAGE_SASL_AUTHENTICATION_FAILED = "SASL authentication is required but failed.";
+
 		#region Events
 		// TODO: Remove/reorganise/merge some of these?
 		/// <summary>Raised when the local user ceases to be marked as away.</summary>
-		public event EventHandler<AwayEventArgs> AwayCancelled;
+		public event EventHandler<AwayEventArgs>? AwayCancelled;
 		/// <summary>Raised when an away message for another user is received.</summary>
-		public event EventHandler<AwayMessageEventArgs> AwayMessage;
+		public event EventHandler<AwayMessageEventArgs>? AwayMessage;
 		/// <summary>Raised when the local user is marked as away.</summary>
-		public event EventHandler<AwayEventArgs> AwaySet;
+		public event EventHandler<AwayEventArgs>? AwaySet;
 		/// <summary>Raised when new IRCv3 capabilities become available.</summary>
-		public event EventHandler<CapabilitiesAddedEventArgs> CapabilitiesAdded;
+		public event EventHandler<CapabilitiesAddedEventArgs>? CapabilitiesAdded;
 		/// <summary>Raised when IRCv3 capabilities become unavailable.</summary>
-		public event EventHandler<CapabilitiesEventArgs> CapabilitiesDeleted;
+		public event EventHandler<CapabilitiesEventArgs>? CapabilitiesDeleted;
 		/// <summary>Raised when a user describes an action on a channel.</summary>
-		public event EventHandler<ChannelMessageEventArgs> ChannelAction;
+		public event EventHandler<ChannelMessageEventArgs>? ChannelAction;
 		/// <summary>Raised when a user gains administrator status (+a) on a channel.</summary>
-		public event EventHandler<ChannelStatusChangedEventArgs> ChannelAdmin;
+		public event EventHandler<ChannelStatusChangedEventArgs>? ChannelAdmin;
 		/// <summary>Raised when a ban is set (+b) on a channel.</summary>
-		public event EventHandler<ChannelListChangedEventArgs> ChannelBan;
+		public event EventHandler<ChannelListChangedEventArgs>? ChannelBan;
 		/// <summary>Raised when a channel ban list entry is received.</summary>
-		public event EventHandler<ChannelModeListEventArgs> ChannelBanList;
+		public event EventHandler<ChannelModeListEventArgs>? ChannelBanList;
 		/// <summary>Raised when the end of a channel ban list is seen.</summary>
-		public event EventHandler<ChannelModeListEndEventArgs> ChannelBanListEnd;
+		public event EventHandler<ChannelModeListEndEventArgs>? ChannelBanListEnd;
 		/// <summary>Raised when a ban is removed (-b) from a channel.</summary>
-		public event EventHandler<ChannelListChangedEventArgs> ChannelBanRemoved;
+		public event EventHandler<ChannelListChangedEventArgs>? ChannelBanRemoved;
 		/// <summary>Raised when a CTCP request is received to a channel.</summary>
-		public event EventHandler<ChannelMessageEventArgs> ChannelCTCP;
+		public event EventHandler<ChannelMessageEventArgs>? ChannelCTCP;
 		/// <summary>Raised when a user loses administrator status (-a) on a channel.</summary>
-		public event EventHandler<ChannelStatusChangedEventArgs> ChannelDeAdmin;
+		public event EventHandler<ChannelStatusChangedEventArgs>? ChannelDeAdmin;
 		/// <summary>Raised when a user loses half-operator status (-h) on a channel.</summary>
-		public event EventHandler<ChannelStatusChangedEventArgs> ChannelDeHalfOp;
+		public event EventHandler<ChannelStatusChangedEventArgs>? ChannelDeHalfOp;
 		/// <summary>Raised when a user loses half-voice (-V) on a channel.</summary>
-		public event EventHandler<ChannelStatusChangedEventArgs> ChannelDeHalfVoice;
+		public event EventHandler<ChannelStatusChangedEventArgs>? ChannelDeHalfVoice;
 		/// <summary>Raised when a user loses operator status (-o) on a channel.</summary>
-		public event EventHandler<ChannelStatusChangedEventArgs> ChannelDeOp;
+		public event EventHandler<ChannelStatusChangedEventArgs>? ChannelDeOp;
 		/// <summary>Raised when a user loses owner status (-q) on a channel.</summary>
-		public event EventHandler<ChannelStatusChangedEventArgs> ChannelDeOwner;
+		public event EventHandler<ChannelStatusChangedEventArgs>? ChannelDeOwner;
 		/// <summary>Raised when a user loses voice (-v) on a channel.</summary>
-		public event EventHandler<ChannelStatusChangedEventArgs> ChannelDeVoice;
+		public event EventHandler<ChannelStatusChangedEventArgs>? ChannelDeVoice;
 		/// <summary>Raised when a ban exception is set (+e) on a channel.</summary>
-		public event EventHandler<ChannelListChangedEventArgs> ChannelExempt;
+		public event EventHandler<ChannelListChangedEventArgs>? ChannelExempt;
 		/// <summary>Raised when a ban exception is removed (-e) on a channel.</summary>
-		public event EventHandler<ChannelListChangedEventArgs> ChannelExemptRemoved;
+		public event EventHandler<ChannelListChangedEventArgs>? ChannelExemptRemoved;
 		/// <summary>Raised when a user gains half-operator status (+h) on a channel.</summary>
-		public event EventHandler<ChannelStatusChangedEventArgs> ChannelHalfOp;
+		public event EventHandler<ChannelStatusChangedEventArgs>? ChannelHalfOp;
 		/// <summary>Raised when a user gains half-voice (+V) on a channel.</summary>
-		public event EventHandler<ChannelStatusChangedEventArgs> ChannelHalfVoice;
+		public event EventHandler<ChannelStatusChangedEventArgs>? ChannelHalfVoice;
 		/// <summary>Raised when an invite exemption is set (+I) on a channel.</summary>
-		public event EventHandler<ChannelListChangedEventArgs> ChannelInviteExempt;
+		public event EventHandler<ChannelListChangedEventArgs>? ChannelInviteExempt;
 		/// <summary>Raised when a channel invite exemption list entry is received. </summary>
-		public event EventHandler<ChannelModeListEventArgs> ChannelInviteExemptList;
+		public event EventHandler<ChannelModeListEventArgs>? ChannelInviteExemptList;
 		/// <summary>Raised when the end of a channel invite exemption list is seen.</summary>
-		public event EventHandler<ChannelModeListEndEventArgs> ChannelInviteExemptListEnd;
+		public event EventHandler<ChannelModeListEndEventArgs>? ChannelInviteExemptListEnd;
 		/// <summary>Raised when an invite exemption is removed (-I) on a channel.</summary>
-		public event EventHandler<ChannelListChangedEventArgs> ChannelInviteExemptRemoved;
+		public event EventHandler<ChannelListChangedEventArgs>? ChannelInviteExemptRemoved;
 		/// <summary>Raised when a user, including the local user, joins a channel.</summary>
-		public event EventHandler<ChannelJoinEventArgs> ChannelJoin;
+		public event EventHandler<ChannelJoinEventArgs>? ChannelJoin;
 		/// <summary>Raised when a join attempt fails.</summary>
-		public event EventHandler<ChannelJoinDeniedEventArgs> ChannelJoinDenied;
+		public event EventHandler<ChannelJoinDeniedEventArgs>? ChannelJoinDenied;
 		/// <summary>Raised when a channel's key is removed (-k).</summary>
-		public event EventHandler<ChannelChangeEventArgs> ChannelKeyRemoved;
+		public event EventHandler<ChannelChangeEventArgs>? ChannelKeyRemoved;
 		/// <summary>Raised when a key is set (+k) on a channel.</summary>
-		public event EventHandler<ChannelKeyEventArgs> ChannelKeySet;
+		public event EventHandler<ChannelKeyEventArgs>? ChannelKeySet;
 		/// <summary>Raised when a user, including the local user, is kicked out of a channel.</summary>
-		public event EventHandler<ChannelKickEventArgs> ChannelKick;
+		public event EventHandler<ChannelKickEventArgs>? ChannelKick;
 		/// <summary>Raised after a more specific event when a user leaves a channel by any means.</summary>
-		public event EventHandler<ChannelPartEventArgs> ChannelLeave;
+		public event EventHandler<ChannelPartEventArgs>? ChannelLeave;
 		/// <summary>Raised when a channel's user limit is removed (-l).</summary>
-		public event EventHandler<ChannelChangeEventArgs> ChannelLimitRemoved;
+		public event EventHandler<ChannelChangeEventArgs>? ChannelLimitRemoved;
 		/// <summary>Raised when a user limit is set (+l) on a channel.</summary>
-		public event EventHandler<ChannelLimitEventArgs> ChannelLimitSet;
+		public event EventHandler<ChannelLimitEventArgs>? ChannelLimitSet;
 		/// <summary>Raised when a channel list entry is seen.</summary>
-		public event EventHandler<ChannelListEventArgs> ChannelList;
+		public event EventHandler<ChannelListEventArgs>? ChannelList;
 		/// <summary>Raised when a non-standard status mode has been set or removed on a channel user.</summary>
-		public event EventHandler<ChannelListChangedEventArgs> ChannelListChanged;
+		public event EventHandler<ChannelListChangedEventArgs>? ChannelListChanged;
 		/// <summary>Raised when the end of the channel list is seen.</summary>
-		public event EventHandler<ChannelListEndEventArgs> ChannelListEnd;
+		public event EventHandler<ChannelListEndEventArgs>? ChannelListEnd;
 		/// <summary>Raised when a user sends a PRIVMSG to a channel.</summary>
-		public event EventHandler<ChannelMessageEventArgs> ChannelMessage;
+		public event EventHandler<ChannelMessageEventArgs>? ChannelMessage;
 		/// <summary>Raised when a PRIVMSG attempt fails.</summary>
-		public event EventHandler<ChannelJoinDeniedEventArgs> ChannelMessageDenied;
+		public event EventHandler<ChannelJoinDeniedEventArgs>? ChannelMessageDenied;
 		/// <summary>Raised when modes are set on a channel, once for each mode.</summary>
-		public event EventHandler<ChannelModeChangedEventArgs> ChannelModeChanged;
+		public event EventHandler<ChannelModeChangedEventArgs>? ChannelModeChanged;
 		/// <summary>Raised when a channel's modes are received.</summary>
-		public event EventHandler<ChannelModesSetEventArgs> ChannelModesGet;
+		public event EventHandler<ChannelModesSetEventArgs>? ChannelModesGet;
 		/// <summary>Raised when modes are set on a channel, after other channel mode events.</summary>
-		public event EventHandler<ChannelModesSetEventArgs> ChannelModesSet;
+		public event EventHandler<ChannelModesSetEventArgs>? ChannelModesSet;
 		/// <summary>Raised when a user sends a NOTICE to a channel.</summary>
-		public event EventHandler<ChannelMessageEventArgs> ChannelNotice;
+		public event EventHandler<ChannelMessageEventArgs>? ChannelNotice;
 		/// <summary>Raised when a user gains operator status (+o) on a channel.</summary>
-		public event EventHandler<ChannelStatusChangedEventArgs> ChannelOp;
+		public event EventHandler<ChannelStatusChangedEventArgs>? ChannelOp;
 		/// <summary>Raised when a user gains owner status (+q) on a channel.</summary>
-		public event EventHandler<ChannelStatusChangedEventArgs> ChannelOwner;
+		public event EventHandler<ChannelStatusChangedEventArgs>? ChannelOwner;
 		/// <summary>Raised when a user, including the local user, parts a channel.</summary>
-		public event EventHandler<ChannelPartEventArgs> ChannelPart;
+		public event EventHandler<ChannelPartEventArgs>? ChannelPart;
 		/// <summary>Raised when a quiet is set (+q) on a channel/</summary>
-		public event EventHandler<ChannelListChangedEventArgs> ChannelQuiet;
+		public event EventHandler<ChannelListChangedEventArgs>? ChannelQuiet;
 		/// <summary>Raised when a quiet is removed (-q) from a channel.</summary>
-		public event EventHandler<ChannelListChangedEventArgs> ChannelQuietRemoved;
+		public event EventHandler<ChannelListChangedEventArgs>? ChannelQuietRemoved;
 		/// <summary>Raised when a non-standard status mode has been set or removed on a channel user.</summary>
-		public event EventHandler<ChannelStatusChangedEventArgs> ChannelStatusChanged;
+		public event EventHandler<ChannelStatusChangedEventArgs>? ChannelStatusChanged;
 		/// <summary>Raised when a channel timestamp is received.</summary>
-		public event EventHandler<ChannelTimestampEventArgs> ChannelTimestamp;
+		public event EventHandler<ChannelTimestampEventArgs>? ChannelTimestamp;
 		/// <summary>Raised when a channel topic is changed.</summary>
-		public event EventHandler<ChannelTopicChangeEventArgs> ChannelTopicChanged;
+		public event EventHandler<ChannelTopicChangeEventArgs>? ChannelTopicChanged;
 		/// <summary>Raised when a channel topic is received.</summary>
-		public event EventHandler<ChannelTopicEventArgs> ChannelTopicReceived;
+		public event EventHandler<ChannelTopicEventArgs>? ChannelTopicReceived;
 		/// <summary>Raised when a channel topic stamp is received.</summary>
-		public event EventHandler<ChannelTopicStampEventArgs> ChannelTopicStamp;
+		public event EventHandler<ChannelTopicStampEventArgs>? ChannelTopicStamp;
 		/// <summary>Raised when a user gains voice (+v) on a channel.</summary>
-		public event EventHandler<ChannelStatusChangedEventArgs> ChannelVoice;
+		public event EventHandler<ChannelStatusChangedEventArgs>? ChannelVoice;
 		/// <summary>Raised when the IRC connection is lost.</summary>
-		public event EventHandler<DisconnectEventArgs> Disconnected;
+		public event EventHandler<DisconnectEventArgs>? Disconnected;
 		/// <summary>Raised when an exception occurs in the connection.</summary>
-		public event EventHandler<ExceptionEventArgs> Exception;
+		public event EventHandler<ExceptionEventArgs>? Exception;
 		/// <summary>Raised when a channel ban exception list entry is received.</summary>
-		public event EventHandler<ChannelModeListEventArgs> ExemptList;
+		public event EventHandler<ChannelModeListEventArgs>? ExemptList;
 		/// <summary>Raised when the end of a channel ban exception list is seen.</summary>
-		public event EventHandler<ChannelModeListEndEventArgs> ExemptListEnd;
+		public event EventHandler<ChannelModeListEndEventArgs>? ExemptListEnd;
 		/// <summary>Raised when the local user is invited to a channel.</summary>
-		public event EventHandler<InviteEventArgs> Invite;
+		public event EventHandler<InviteEventArgs>? Invite;
 		/// <summary>Raised when a channel invite is sent.</summary>
-		public event EventHandler<InviteSentEventArgs> InviteSent;
+		public event EventHandler<InviteSentEventArgs>? InviteSent;
 		/// <summary>Raised when the local user is killed.</summary>
-		public event EventHandler<PrivateMessageEventArgs> Killed;
+		public event EventHandler<PrivateMessageEventArgs>? Killed;
 		/// <summary>Raised after the <see cref="UserQuit"/> or <see cref="NicknameChange"/> event when a user on the monitor list goes offline or changes their nickname.</summary>
-		public event EventHandler<IrcUserEventArgs> MonitorOffline;
+		public event EventHandler<IrcUserEventArgs>? MonitorOffline;
 		/// <summary>Raised after the <see cref="UserAppeared"/> event when a user on the monitor list appears online.</summary>
-		public event EventHandler<IrcUserEventArgs> MonitorOnline;
+		public event EventHandler<IrcUserEventArgs>? MonitorOnline;
 		/// <summary>Raised when part of the MOTD is seen.</summary>
-		public event EventHandler<MotdEventArgs> MOTD;
+		public event EventHandler<MotdEventArgs>? MOTD;
 		/// <summary>Raised when part of a channel names list is seen.</summary>
-		public event EventHandler<ChannelNamesEventArgs> Names;
+		public event EventHandler<ChannelNamesEventArgs>? Names;
 		/// <summary>Raised when the end of a channel names list is seen.</summary>
-		public event EventHandler<ChannelModeListEndEventArgs> NamesEnd;
+		public event EventHandler<ChannelModeListEndEventArgs>? NamesEnd;
 		/// <summary>Raised when a user's nickname changes.</summary>
-		public event EventHandler<NicknameChangeEventArgs> NicknameChange;
+		public event EventHandler<NicknameChangeEventArgs>? NicknameChange;
 		/// <summary>Raised when a nickname change attempt fails.</summary>
-		public event EventHandler<NicknameEventArgs> NicknameChangeFailed;
+		public event EventHandler<NicknameEventArgs>? NicknameChangeFailed;
 		/// <summary>Raised when a nickname change attempt fails because the nickname is invalid.</summary>
-		public event EventHandler<NicknameEventArgs> NicknameInvalid;
+		public event EventHandler<NicknameEventArgs>? NicknameInvalid;
 		/// <summary>Raised when a nickname change attempt fails because the nickname is taken.</summary>
-		public event EventHandler<NicknameEventArgs> NicknameTaken;
+		public event EventHandler<NicknameEventArgs>? NicknameTaken;
 		/// <summary>Raised when a PONG is received.</summary>
-		public event EventHandler<PingEventArgs> Pong;
+		public event EventHandler<PingEventArgs>? Pong;
 		/// <summary>Raised when a PING is received.</summary>
-		public event EventHandler<PingEventArgs> PingReceived;
+		public event EventHandler<PingEventArgs>? PingReceived;
 		/// <summary>Raised when a user describes an action in private.</summary>
-		public event EventHandler<PrivateMessageEventArgs> PrivateAction;
+		public event EventHandler<PrivateMessageEventArgs>? PrivateAction;
 		/// <summary>Raised when a CTCP request is received in private.</summary>
-		public event EventHandler<PrivateMessageEventArgs> PrivateCTCP;
+		public event EventHandler<PrivateMessageEventArgs>? PrivateCTCP;
 		/// <summary>Raised when a PRIVMSG is received in private.</summary>
-		public event EventHandler<PrivateMessageEventArgs> PrivateMessage;
+		public event EventHandler<PrivateMessageEventArgs>? PrivateMessage;
 		/// <summary>Raised when a NOTICE is received in private.</summary>
-		public event EventHandler<PrivateMessageEventArgs> PrivateNotice;
+		public event EventHandler<PrivateMessageEventArgs>? PrivateNotice;
 		/// <summary>Raised when a line is received from the server, before any other processing.</summary>
-		public event EventHandler<IrcLineEventArgs> RawLineReceived;
+		public event EventHandler<IrcLineEventArgs>? RawLineReceived;
 		/// <summary>Raised when a line is sent.</summary>
-		public event EventHandler<RawLineEventArgs> RawLineSent;
+		public event EventHandler<RawLineEventArgs>? RawLineSent;
 		/// <summary>Raised when a line is received from the server that isn't handled.</summary>
-		public event EventHandler<IrcLineEventArgs> RawLineUnhandled;
+		public event EventHandler<IrcLineEventArgs>? RawLineUnhandled;
 		/// <summary>Raised when registration completes.</summary>
-		public event EventHandler<RegisteredEventArgs> Registered;
+		public event EventHandler<RegisteredEventArgs>? Registered;
 		/// <summary>Raised when an ERROR message is received.</summary>
-		public event EventHandler<ServerErrorEventArgs> ServerError;
+		public event EventHandler<ServerErrorEventArgs>? ServerError;
 		/// <summary>Raised when a NOTICE message is received from a server.</summary>
-		public event EventHandler<PrivateMessageEventArgs> ServerNotice;
+		public event EventHandler<PrivateMessageEventArgs>? ServerNotice;
 		/// <summary>Raised when the State property changes.</summary>
-		public event EventHandler<StateEventArgs> StateChanged;
+		public event EventHandler<StateEventArgs>? StateChanged;
 		/// <summary>Raised when a previously unseen user appears.</summary>
-		public event EventHandler<IrcUserEventArgs> UserAppeared;
+		public event EventHandler<IrcUserEventArgs>? UserAppeared;
 		/// <summary>Raised when we lose sight of a user, but they did not leave the network.</summary>
-		public event EventHandler<IrcUserEventArgs> UserDisappeared;
+		public event EventHandler<IrcUserEventArgs>? UserDisappeared;
 		/// <summary>Raised when user modes are received.</summary>
-		public event EventHandler<UserModesEventArgs> UserModesGet;
+		public event EventHandler<UserModesEventArgs>? UserModesGet;
 		/// <summary>Raised when user modes are set.</summary>
-		public event EventHandler<UserModesEventArgs> UserModesSet;
+		public event EventHandler<UserModesEventArgs>? UserModesSet;
 		/// <summary>Raised when a user, including the local user, quits the IRC network.</summary>
-		public event EventHandler<QuitEventArgs> UserQuit;
+		public event EventHandler<QuitEventArgs>? UserQuit;
 		/// <summary>Raised when the server presents an untrusted TLS certificate. Set e.Valid to true to allow the connection.</summary>
-		public event EventHandler<ValidateCertificateEventArgs> ValidateCertificate;
+		public event EventHandler<ValidateCertificateEventArgs>? ValidateCertificate;
 		/// <summary>Raised when a WALLOPS message is received.</summary>
-		public event EventHandler<PrivateMessageEventArgs> Wallops;
+		public event EventHandler<PrivateMessageEventArgs>? Wallops;
 		/// <summary>Raised when a WHOIS authentication line is received.</summary>
-		public event EventHandler<WhoisAuthenticationEventArgs> WhoIsAuthenticationLine;
+		public event EventHandler<WhoisAuthenticationEventArgs>? WhoIsAuthenticationLine;
 		/// <summary>Raised when a WHOIS channels line is received.</summary>
-		public event EventHandler<WhoisChannelsEventArgs> WhoIsChannelLine;
+		public event EventHandler<WhoisChannelsEventArgs>? WhoIsChannelLine;
 		/// <summary>Raised when the end of a WHOIS listing is received.</summary>
-		public event EventHandler<WhoisEndEventArgs> WhoIsEnd;
+		public event EventHandler<WhoisEndEventArgs>? WhoIsEnd;
 		/// <summary>Raised when a WHOIS helper line is received.</summary>
-		public event EventHandler<WhoisOperEventArgs> WhoIsHelperLine;
+		public event EventHandler<WhoisOperEventArgs>? WhoIsHelperLine;
 		/// <summary>Raised when a WHOIS idle line is received.</summary>
-		public event EventHandler<WhoisIdleEventArgs> WhoIsIdleLine;
+		public event EventHandler<WhoisIdleEventArgs>? WhoIsIdleLine;
 		/// <summary>Raised when a WHOIS name line is received.</summary>
-		public event EventHandler<WhoisNameEventArgs> WhoIsNameLine;
+		public event EventHandler<WhoisNameEventArgs>? WhoIsNameLine;
 		/// <summary>Raised when a WHOIS oper line is received.</summary>
-		public event EventHandler<WhoisOperEventArgs> WhoIsOperLine;
+		public event EventHandler<WhoisOperEventArgs>? WhoIsOperLine;
 		/// <summary>Raised when a WHOIS real host line is received.</summary>
-		public event EventHandler<WhoisRealHostEventArgs> WhoIsRealHostLine;
+		public event EventHandler<WhoisRealHostEventArgs>? WhoIsRealHostLine;
 		/// <summary>Raised when a WHOIS server line is received.</summary>
-		public event EventHandler<WhoisServerEventArgs> WhoIsServerLine;
+		public event EventHandler<WhoisServerEventArgs>? WhoIsServerLine;
 		/// <summary>Raised when a WHO list entry is received.</summary>
-		public event EventHandler<WhoListEventArgs> WhoList;
+		public event EventHandler<WhoListEventArgs>? WhoList;
 		/// <summary>Raised when the end of a WHOWAS list is received.</summary>
-		public event EventHandler<WhoisEndEventArgs> WhoWasEnd;
+		public event EventHandler<WhoisEndEventArgs>? WhoWasEnd;
 		/// <summary>Raised when a WHOWAS name line is received.</summary>
-		public event EventHandler<WhoisNameEventArgs> WhoWasNameLine;
+		public event EventHandler<WhoisNameEventArgs>? WhoWasNameLine;
 		/// <summary>Raised when a WHOX list entry is received.</summary>
-		public event EventHandler<WhoxListEventArgs> WhoxList;
+		public event EventHandler<WhoxListEventArgs>? WhoxList;
 		#endregion
 
 		#region Event methods
@@ -372,11 +380,11 @@ namespace AnIRC {
 
 		// Server information
 		/// <summary>The common name (address) of the server, to be checked against the the server's TLS certificate if TLS is used.</summary>
-		public string Address { get; set; }
+		public string? Address { get; set; }
 		/// <summary>The password to use when logging in, or null if no password is needed.</summary>
-		public string Password { get; set; }
+		public string? Password { get; set; }
 		/// <summary>The server's self-proclaimed name or address.</summary>
-		public string ServerName { get; protected internal set; }
+		public string? ServerName { get; protected internal set; }
 		/// <summary>The name of the IRC network, if known.</summary>
 		public string NetworkName => this.Extensions.NetworkName;
 
@@ -392,9 +400,9 @@ namespace AnIRC {
 
 		/// <summary>The username to use with SASL authentication.</summary>
 		/// <remarks>Currently only the PLAIN mechanism is supported.</remarks>
-		public string SaslUsername { get; set; }
+		public string? SaslUsername { get; set; }
 		/// <summary>The password to use with SASL authentication.</summary>
-		public string SaslPassword { get; set; }
+		public string? SaslPassword { get; set; }
 		/// <summary>Returns or sets a value indicating whether a connection will be abandoned if SASL authentication is unsuccessful.</summary>
 		public bool RequireSaslAuthentication { get; set; }
 
@@ -444,15 +452,15 @@ namespace AnIRC {
 
 		/// <summary>Returns the list of pending async requests for this <see cref="IrcClient"/>.</summary>
 		public ReadOnlyCollection<AsyncRequest> AsyncRequests;
-		private Timer asyncRequestTimer;
-		private TaskCompletionSource<IrcLine> readAsyncTaskSource;
+		private Timer asyncRequestTimer = new(30e+3) { AutoReset = false };
+		private TaskCompletionSource<IrcLine>? readAsyncTaskSource;
 
-		private TcpClient tcpClient;
+		private TcpClient? tcpClient;
 		private bool ssl;
-		private SslStream sslStream;
-		private StreamReader reader;
-		private StreamWriter writer;
-		private Thread readThread;
+		private SslStream? sslStream;
+		private StreamReader? reader;
+		private StreamWriter? writer;
+		private Thread? readThread;
 		private int pingTimeout = 60;
 		private bool pinged;
 		private readonly Timer pingTimer = new(60000);
@@ -465,14 +473,14 @@ namespace AnIRC {
 		internal bool accountKnown;  // Some servers send both 330 and 307 in WHOIS replies. We need to ignore the 307 in that case.
 		internal List<string> pendingCapabilities = new();
 		internal Dictionary<string, HashSet<string>> pendingNames = new();
-		internal HashSet<string> pendingMonitor;
+		internal HashSet<string>? pendingMonitor;
 
 		/// <summary>Contains functions used to handle replies received from the server.</summary>
 		protected internal Dictionary<string, IrcMessageHandler> MessageHandlers = new(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>Creates a new IRCClient object with no network name and the default encoding and ping timeout.</summary>
 		/// <param name="localUser">An IRCLocalUser instance to represent the local user.</param>
-		public IrcClient(IrcLocalUser localUser) : this(localUser, null, new UTF8Encoding(false, false)) { }  // Don't want a byte order mark. That messes things up.
+		public IrcClient(IrcLocalUser localUser) : this(localUser, "IRC Network", new UTF8Encoding(false, false)) { }  // Don't want a byte order mark. That messes things up.
 		/// <summary>Creates a new IRCClient object with no network name and the default encoding and ping timeout.</summary>
 		/// <param name="localUser">An IRCLocalUser instance to represent the local user.</param>
 		/// <param name="networkName">The name of the IRC network.</param>
@@ -480,14 +488,16 @@ namespace AnIRC {
 		/// <summary>Creates a new IRCClient object with no name and the default encoding and ping timeout.</summary>
 		/// <param name="localUser">An IRCLocalUser instance to represent the local user.</param>
 		/// <param name="encoding">The encoding to use to send and receive data.</param>
-		public IrcClient(IrcLocalUser localUser, Encoding encoding) : this(localUser, null, encoding) { }
+		public IrcClient(IrcLocalUser localUser, Encoding? encoding) : this(localUser, "IRC Network", encoding) { }
 		/// <summary>Creates a new <see cref="IrcClient"/> object with no name and the default encoding and ping timeout.</summary>
 		/// <param name="localUser">An <see cref="IrcLocalUser"/> instance to represent the local user.</param>
 		/// <param name="networkName">The name of the IRC network.</param>
 		/// <param name="encoding">The encoding to use to send and receive data.</param>
-		public IrcClient(IrcLocalUser localUser, string networkName, Encoding encoding) {
-			if (localUser == null) throw new ArgumentNullException(nameof(localUser));
-			if (localUser.Client != null && localUser.Client != this) throw new ArgumentException("The " + nameof(IrcLocalUser) + " object is already bound to another " + nameof(IrcClient) + ".", nameof(localUser));
+		public IrcClient(IrcLocalUser localUser, string networkName, Encoding? encoding) {
+			if (localUser is null) throw new ArgumentNullException(nameof(localUser));
+			if (localUser.client != null && localUser.client != this) throw new ArgumentException($"The {nameof(IrcLocalUser)} object is already bound to another {nameof(IrcClient)}.", nameof(localUser));
+
+			this.asyncRequestTimer.Elapsed += this.AsyncRequestTimer_Elapsed;
 
 			this.Extensions = new IrcExtensions(this, networkName);
 			this.SupportedCapabilities = new ReadOnlyDictionary<string, IrcCapability>(this.supportedCapabilities);
@@ -548,7 +558,7 @@ namespace AnIRC {
 				if (this.pinged) {
 					this.disconnectReason = DisconnectReason.PingTimeout;
 					this.Send("QUIT :" + this.PingTimeoutMessage);
-					this.writer.Close();
+					this.writer?.Close();
 					this.pingTimer.Stop();
 					this.OnDisconnected(new DisconnectEventArgs(DisconnectReason.PingTimeout, null));
 					this.State = IrcClientState.Disconnected;
@@ -560,6 +570,7 @@ namespace AnIRC {
 		}
 
 		/// <summary>Connects and logs in to an IRC network.</summary>
+		[MemberNotNull(nameof(Address), nameof(tcpClient))]
 		public virtual void Connect(string host, int port) {
 			if (this.RequireSaslAuthentication && (this.SaslUsername == null || this.SaslPassword == null))
 				throw new InvalidOperationException("SASL authentication is required, but no credentials are given.");
@@ -567,7 +578,7 @@ namespace AnIRC {
 			this.disconnectReason = 0;
 			this.accountKnown = false;
 
-			this.Address = host;
+			this.Address ??= host;
 			// Connect to the server.
 			this.tcpClient = new TcpClient() { ReceiveBufferSize = 1024, SendBufferSize = 1024 };
 			this.State = IrcClientState.Connecting;
@@ -577,11 +588,13 @@ namespace AnIRC {
 			this.pinged = false;
 		}
 		/// <summary>Connects and logs in to an IRC network.</summary>
+		[MemberNotNull(nameof(Address), nameof(tcpClient))]
 		public virtual void Connect(IPAddress ip, int port) {
 			this.disconnectReason = 0;
 			this.accountKnown = false;
 
 			// Connect to the server.
+			this.Address ??= ip.ToString();
 			this.tcpClient = new TcpClient() { ReceiveBufferSize = 1024, SendBufferSize = 1024 };
 			this.State = IrcClientState.Connecting;
 			this.tcpClient.BeginConnect(ip, port, this.OnConnected, ip.ToString());
@@ -593,7 +606,7 @@ namespace AnIRC {
 		/// <summary>Called when the TCP connection attempt has completed.</summary>
 		protected virtual void OnConnected(IAsyncResult result) {
 			try {
-				this.tcpClient.EndConnect(result);
+				this.tcpClient!.EndConnect(result);
 			} catch (SocketException ex) {
 				this.OnException(new ExceptionEventArgs(ex, true));
 				this.State = IrcClientState.Disconnected;
@@ -607,7 +620,7 @@ namespace AnIRC {
 
 				try {
 					const SslProtocols protocols = SslProtocols.Tls12 | SslProtocols.Tls11 | SslProtocols.Tls;  // SSLv3 has gone to the dogs.
-					this.sslStream.AuthenticateAsClient(this.Address ?? (string) result.AsyncState, null, protocols, true);
+					this.sslStream.AuthenticateAsClient(this.Address!, null, protocols, true);
 
 					this.reader = new StreamReader(this.sslStream, this.Encoding);
 					this.writer = new StreamWriter(this.sslStream, this.Encoding);
@@ -652,7 +665,7 @@ namespace AnIRC {
 		/// <param name="chain">The chain of certificate authorities associated with the server's certificate.</param>
 		/// <param name="sslPolicyErrors">A value indicating why the certificate is invalid.</param>
 		/// <returns>True if the connection should continue; false if it should be terminated.</returns>
-		protected virtual bool ValidateCertificateInternal(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) {
+		protected virtual bool ValidateCertificateInternal(object sender, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors sslPolicyErrors) {
 			bool valid = false;
 			if (this.AllowInvalidCertificate)
 				valid = true;
@@ -661,7 +674,7 @@ namespace AnIRC {
 				valid = true;
 			else {
 				// If the certificate is trusted, continue.
-				if (this.TrustedCertificates.Count != 0) {
+				if (certificate is not null && this.TrustedCertificates.Count != 0) {
 					var sha256Hash = string.Join(null, new SHA256Managed().ComputeHash(certificate.GetRawCertData()).Select(b => b.ToString("X2")));
 					if (this.TrustedCertificates.Contains(sha256Hash, StringComparer.OrdinalIgnoreCase))
 						valid = true;
@@ -685,7 +698,7 @@ namespace AnIRC {
 
 		/// <summary>Ungracefully closes the connection to the IRC network.</summary>
 		public virtual void Disconnect() {
-			this.writer.Close();
+			this.writer?.Close();
 			this.pingTimer.Stop();
 			this.OnDisconnected(new DisconnectEventArgs(DisconnectReason.ClientDisconnected, null));
 			this.State = IrcClientState.Disconnected;
@@ -696,14 +709,8 @@ namespace AnIRC {
 			lock (this.asyncRequests) {
 				this.asyncRequests.Add(request);
 				if (request.CanTimeout) {
-					if (this.asyncRequestTimer == null) {
-						this.asyncRequestTimer = new Timer(30e+3) { AutoReset = false };
-						this.asyncRequestTimer.Elapsed += this.AsyncRequestTimer_Elapsed;
-						this.asyncRequestTimer.Start();
-					} else {
-						this.asyncRequestTimer.Stop();
-						this.asyncRequestTimer.Start();
-					}
+					this.asyncRequestTimer.Stop();
+					this.asyncRequestTimer.Start();
 				}
 			}
 		}
@@ -721,13 +728,13 @@ namespace AnIRC {
 		/// <summary>Reads and processes messages from the server.</summary>
 		protected virtual void ReadLoop() {
 			while (this.State >= IrcClientState.Registering) {
-				string line;
+				string? line;
 				try {
 					if (this.pingTimeout != 0) this.pingTimer.Start();
-					line = this.reader.ReadLine();
+					line = this.reader!.ReadLine();
 				} catch (Exception ex) when (ex is IOException or SocketException or ObjectDisposedException) {
 					if (this.State == IrcClientState.Disconnected) break;
-					this.writer.Close();
+					this.writer?.Close();
 					this.pingTimer.Stop();
 					this.OnDisconnected(new DisconnectEventArgs(DisconnectReason.Exception, ex));
 					break;
@@ -806,7 +813,7 @@ namespace AnIRC {
 			if (asyncRequest.Replies.TryGetValue(line.Message, out final)) {
 				if (asyncRequest.Parameters == null) return true;
 				for (int i = asyncRequest.Parameters.Count - 1; i >= 0; --i) {
-					if (asyncRequest.Parameters[i] != null && !this.CaseMappingComparer.Equals(asyncRequest.Parameters[i], line.Parameters[i]))
+					if (asyncRequest.Parameters[i] != null && !this.CaseMappingComparer.Equals(asyncRequest.Parameters[i]!, line.Parameters[i]))
 						return false;
 				}
 				return true;
@@ -819,12 +826,12 @@ namespace AnIRC {
 		/// <exception cref="InvalidOperationException">The client is not connected to a server.</exception>
 		public virtual void Send(string data) {
 			lock (this.Lock) {
-				if (!this.tcpClient.Connected) throw new InvalidOperationException("The client is not connected.");
+				if (this.tcpClient is null || !this.tcpClient.Connected) throw new InvalidOperationException("The client is not connected.");
 
 				var e = new RawLineEventArgs(data);
 				this.OnRawLineSent(e);
 
-				this.writer.Write(e.Data);
+				this.writer!.Write(e.Data);
 				this.writer.Write("\r\n");
 				this.writer.Flush();
 
@@ -871,10 +878,10 @@ namespace AnIRC {
 		protected internal void HandleChannelModes(IrcUser sender, IrcChannel channel, string modes, IEnumerable<string> parameters, bool modeMessage) {
 			var enumerator = parameters.GetEnumerator();
 			bool direction = true;
-			string parameter;
+			string? parameter;
 
 			var changes = new List<ModeChange>();
-			HashSet<char> oldModes = null;
+			HashSet<char>? oldModes = null;
 			if (!modeMessage) oldModes = new HashSet<char>(channel.Modes);
 
 			foreach (char c in modes) {
@@ -883,7 +890,7 @@ namespace AnIRC {
 				else if (c == '-')
 					direction = false;
 				else {
-					string oldParameter = null;
+					string? oldParameter = null;
 
 					switch (this.Extensions.ChanModes.ModeType(c)) {
 						case 'S':
@@ -915,13 +922,13 @@ namespace AnIRC {
 					}
 
 					if (direction) {
-						if (modeMessage || !oldModes.Remove(c)) {
+						if (oldModes is null || !oldModes.Remove(c)) {
 							// A mode is set.
 							changes.Add(new ModeChange() { Direction = direction, Mode = c, Parameter = parameter });
 						} else if (oldParameter != null && parameter != oldParameter) {
 							// The parameter has changed.
 							changes.Add(new ModeChange() { Direction = direction, Mode = c, Parameter = parameter });
-							channel.Modes.SetParameter(c, parameter);
+							if (parameter is not null) channel.Modes.SetParameter(c, parameter);
 						}
 					} else if (modeMessage)
 						changes.Add(new ModeChange() { Direction = direction, Mode = c, Parameter = parameter });
@@ -929,7 +936,7 @@ namespace AnIRC {
 			}
 
 			// Check for modes missing from RPL_CHANNELMODEIS.
-			if (!modeMessage)
+			if (oldModes is not null)
 				foreach (char c in oldModes)
 					changes.Add(new ModeChange() { Direction = false, Mode = c, Parameter = null });
 
@@ -948,7 +955,7 @@ namespace AnIRC {
 				else user.Status.Remove(mode);
 			}
 		}
-		private static void HandleChannelMode(IrcUser sender, IrcChannel channel, bool direction, char mode, string parameter, bool events) {
+		private static void HandleChannelMode(IrcUser sender, IrcChannel channel, bool direction, char mode, string? parameter, bool events) {
 			if (direction) {
 				if (parameter != null) channel.Modes.Add(mode, parameter);
 				else channel.Modes.Add(mode);
@@ -959,7 +966,7 @@ namespace AnIRC {
 			foreach (var change in e.Modes) {
 				switch (this.Extensions.ChanModes.ModeType(change.Mode)) {
 					case 'A':
-						var e2 = new ChannelListChangedEventArgs(e.Sender, e.Channel, change.Direction, change.Mode, change.Parameter);
+						var e2 = new ChannelListChangedEventArgs(e.Sender, e.Channel, change.Direction, change.Mode, change.Parameter!);
 						if (change.Mode == 'b') {
 							if (change.Direction) this.OnChannelBan(e2);
 							else this.OnChannelUnBan(e2);
@@ -984,14 +991,13 @@ namespace AnIRC {
 						break;
 					case 'C':
 						if (change.Mode == 'l') {
-							if (change.Direction) this.OnChannelSetLimit(new ChannelLimitEventArgs(e.Sender, e.Channel, int.Parse(change.Parameter)));
+							if (change.Direction) this.OnChannelSetLimit(new ChannelLimitEventArgs(e.Sender, e.Channel, int.Parse(change.Parameter!)));
 							else this.OnChannelRemoveLimit(new ChannelChangeEventArgs(e.Sender, e.Channel));
 						} else
 							this.OnChannelModeChanged(new ChannelModeChangedEventArgs(e.Sender, e.Channel, change.Direction, change.Mode, change.Parameter));
 						break;
 					case 'S':
-						IrcChannelUser user;
-						if (!e.Channel.Users.TryGetValue(change.Parameter, out user)) user = new IrcChannelUser(this, e.Channel, change.Parameter);
+						if (!e.Channel.Users.TryGetValue(change.Parameter!, out var user)) user = new IrcChannelUser(this, e.Channel, change.Parameter!);
 						var e3 = new ChannelStatusChangedEventArgs(e.Sender, e.Channel, change.Direction, change.Mode, user);
 
 						if (change.Mode == 'o') {
@@ -1023,7 +1029,7 @@ namespace AnIRC {
 			}
 		}
 
-		internal IrcUser[] RemoveUserFromChannel(IrcChannel channel, IrcUser user) {
+		internal IrcUser[]? RemoveUserFromChannel(IrcChannel channel, IrcUser user) {
 			channel.Users.Remove(user.Nickname);
 
 			user.Channels.Remove(channel);
@@ -1106,7 +1112,7 @@ namespace AnIRC {
 
 			int messageStart = 0, pos = 0, pos2 = 0;
 			while (messageStart < message.Length) {
-				string part = null;
+				string? part = null;
 				pos = messageStart + 1;
 				do {
 					// Find the next breaking character.
@@ -1183,7 +1189,7 @@ namespace AnIRC {
 		/// <summary>Attempts to join the specified channel. The returned Task object completes only if the join is successful.</summary>
 		public Task JoinAsync(string channel) => this.JoinAsync(channel, null);
 		/// <summary>Attempts to join the specified channel. The returned Task object completes only if the join is successful.</summary>
-		public Task JoinAsync(string channel, string key) {
+		public Task JoinAsync(string channel, string? key) {
 			if (channel == null) throw new ArgumentNullException(nameof(channel));
 			if (this.state < IrcClientState.ReceivingServerInfo) throw new InvalidOperationException("The client must be registered to join channels.");
 
@@ -1267,7 +1273,7 @@ namespace AnIRC {
 		/// <param name="server">May be a server name to address that server, a nickname to address the server they are on, or null to address the server we are on.</param>
 		/// <param name="nickname">The nickname to check.</param>
 		/// <returns>A <see cref="Task"/> representing the status of the request. The <see cref="Task{TResult}.Result"/> represents the response to the request.</returns>
-		public Task<WhoisResponse> WhoisAsync(string server, string nickname) {
+		public Task<WhoisResponse> WhoisAsync(string? server, string nickname) {
 			if (nickname == null) throw new ArgumentNullException(nameof(nickname));
 			if (this.state < IrcClientState.ReceivingServerInfo) throw new InvalidOperationException("The client must be registered to perform a WHOIS request.");
 

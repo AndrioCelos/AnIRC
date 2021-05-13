@@ -50,7 +50,7 @@ namespace AnIRC {
 			foreach (char mode in this.modes) {
 				builder.Append(mode);
 
-				if (this.parameters.TryGetValue(mode, out string parameter)) {
+				if (this.parameters.TryGetValue(mode, out var parameter)) {
 					builder2.Append(' ');
 					builder2.Append(parameter);
 				}
@@ -70,14 +70,14 @@ namespace AnIRC {
 		bool ISet<char>.Overlaps(IEnumerable<char> other) => this.modes.Overlaps(other);
 		bool ISet<char>.SetEquals(IEnumerable<char> other) => this.modes.SetEquals(other);
 
-		void ICollection<char>.Add(char item) => throw new NotSupportedException("ModeCollection is read-only.");
-		bool ISet<char>.Add(char item) => throw new NotSupportedException("ModeCollection is read-only.");
-		void ICollection<char>.Clear() => throw new NotSupportedException("ModeCollection is read-only.");
-		void ISet<char>.ExceptWith(IEnumerable<char> other) => throw new NotSupportedException("ModeCollection is read-only.");
-		void ISet<char>.IntersectWith(IEnumerable<char> other) => throw new NotSupportedException("ModeCollection is read-only.");
-		bool ICollection<char>.Remove(char item) => throw new NotSupportedException("ModeCollection is read-only.");
-		void ISet<char>.SymmetricExceptWith(IEnumerable<char> other) => throw new NotSupportedException("ModeCollection is read-only.");
-		void ISet<char>.UnionWith(IEnumerable<char> other) => throw new NotSupportedException("ModeCollection is read-only.");
+		void ICollection<char>.Add(char item) => throw new NotSupportedException($"{nameof(ModeSet)} is read-only.");
+		bool ISet<char>.Add(char item) => throw new NotSupportedException($"{nameof(ModeSet)} is read-only.");
+		void ICollection<char>.Clear() => throw new NotSupportedException($"{nameof(ModeSet)} is read-only.");
+		void ISet<char>.ExceptWith(IEnumerable<char> other) => throw new NotSupportedException($"{nameof(ModeSet)} is read-only.");
+		void ISet<char>.IntersectWith(IEnumerable<char> other) => throw new NotSupportedException($"{nameof(ModeSet)} is read-only.");
+		bool ICollection<char>.Remove(char item) => throw new NotSupportedException($"{nameof(ModeSet)} is read-only.");
+		void ISet<char>.SymmetricExceptWith(IEnumerable<char> other) => throw new NotSupportedException($"{nameof(ModeSet)} is read-only.");
+		void ISet<char>.UnionWith(IEnumerable<char> other) => throw new NotSupportedException($"{nameof(ModeSet)} is read-only.");
 		#endregion
 	}
 
@@ -88,6 +88,6 @@ namespace AnIRC {
 		/// <summary>The mode character of the mode that was changed.</summary>
 		public char Mode;
 		/// <summary>The parameter of the mode change, or null if there was no parameter.</summary>
-		public string Parameter;
+		public string? Parameter;
 	}
 }

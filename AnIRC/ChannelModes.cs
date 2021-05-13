@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace AnIRC {
@@ -31,7 +32,7 @@ namespace AnIRC {
 		/// <param name="typeC">A list of mode characters to add as type C modes. May be null.</param>
 		/// <param name="typeD">A list of mode characters to add as type D modes. May be null.</param>
 		/// <param name="status">A list of mode characters to add as status modes, in descending order. May be null.</param>
-		public ChannelModes(IEnumerable<char> typeA, IEnumerable<char> typeB, IEnumerable<char> typeC, IEnumerable<char> typeD, IEnumerable<char> status) {
+		public ChannelModes(IEnumerable<char>? typeA, IEnumerable<char>? typeB, IEnumerable<char>? typeC, IEnumerable<char>? typeD, IEnumerable<char>? status) {
 			if (typeA != null) foreach (var mode in typeA) this.modes[mode] = 'A';
 			if (typeB != null) foreach (var mode in typeB) this.modes[mode] = 'B';
 			if (typeC != null) foreach (var mode in typeC) this.modes[mode] = 'C';
@@ -42,8 +43,10 @@ namespace AnIRC {
 				this.Status = new ReadOnlyCollection<char>(Array.Empty<char>());
 		}
 
+		[MemberNotNull(nameof(Status))]
 		internal void SetStatusModes(IEnumerable<char> modes) {
-			this.Status = new ReadOnlyCollection<char>(modes.ToArray());
+			if (this.Status != null) foreach (var mode in this.Status) this.modes.Remove(mode);
+			this.Status = new(modes.ToArray());
 			foreach (var mode in modes) this.modes[mode] = 'S';
 		}
 

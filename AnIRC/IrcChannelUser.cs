@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace AnIRC {
 	/// <summary>
@@ -39,12 +40,7 @@ namespace AnIRC {
 
 		/// <summary>Returns the User object that represents this user.</summary>
 		/// <exception cref="System.Collections.Generic.KeyNotFoundException">This user is not known on the network.</exception>
-		public IrcUser User {
-			get {
-				this.Client.Users.TryGetValue(this.Nickname, out var user);
-				return user;
-			}
-		}
+		public IrcUser User => this.Client.Users[this.Nickname];
 
 		/// <summary>Returns the user's nickname and status prefixes.</summary>
 		public override string ToString() => this.Status.GetPrefixes() + this.Nickname;

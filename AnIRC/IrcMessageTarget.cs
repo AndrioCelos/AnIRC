@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System;
+using System.Text;
 
 namespace AnIRC {
 	/// <summary>
@@ -12,14 +13,21 @@ namespace AnIRC {
 		public virtual string Target { get; }
 
 		/// <summary>When overridden, returns a value indicating whether this target is a private query or a group.</summary>
-		public virtual bool IsPrivate { get; }
+		public bool IsPrivate { get; }
 
-		/// <summary>Initializes a new <see cref="IrcMessageTarget"/> with no target string.</summary>
-		protected IrcMessageTarget() { }
-		/// <summary>Initializes a new <see cref="IrcMessageTarget"/> with the specified target string.</summary>
-		public IrcMessageTarget(IrcClient client, string target) {
+		/// <summary>When the <see cref="Target"/> property is overridden, initializes a new <see cref="IrcMessageTarget"/>.</summary>
+		protected IrcMessageTarget(IrcClient client, bool isPrivate) {
 			this.Client = client;
-			this.Target = target;
+			this.Target = null!;  // Implementer should override Target so that this backing field is unused.
+			this.IsPrivate = isPrivate;
+		}
+		/// <summary>Initializes a new <see cref="IrcMessageTarget"/> with the specified target string.</summary>
+		public IrcMessageTarget(IrcClient client, string target) : this(client, target, false) { }
+		/// <summary>Initializes a new <see cref="IrcMessageTarget"/> with the specified target string.</summary>
+		public IrcMessageTarget(IrcClient client, string target, bool isPrivate) {
+			this.Client = client ?? throw new ArgumentNullException(nameof(client));
+			this.Target = target ?? throw new ArgumentNullException(nameof(target));
+			this.IsPrivate = isPrivate;
 		}
 
 		/// <summary>Returns the maximum length, in bytes, of a PRIVMSG that can be sent to this entity.</summary>
@@ -48,7 +56,7 @@ namespace AnIRC {
 		/// <summary>Sends a client-to-client protocol request to this entity.</summary>
 		/// <param name="request">The command to send.</param>
 		/// <param name="arg">The parameter to the command.</param>
-		public void Ctcp(string request, string arg) => this.Ctcp(arg != null ? request + " " + arg : request);
+		public void Ctcp(string request, string? arg) => this.Ctcp(arg != null ? request + " " + arg : request);
 		/// <summary>Sends a client-to-client protocol request to this entity.</summary>
 		/// <param name="request">The command to send.</param>
 		/// <param name="args">The parameters to the command.</param>

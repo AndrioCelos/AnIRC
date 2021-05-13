@@ -7,8 +7,6 @@ namespace AnIRC {
 	/// Represents an IRC channel.
 	/// </summary>
 	public class IrcChannel : IrcMessageTarget, INotifyPropertyChanged {
-		public override IrcClient Client { get; }
-
 		public override string Target => this.Name;
 
 		/// <summary>The name of the channel.</summary>
@@ -22,15 +20,15 @@ namespace AnIRC {
 			get => this.timestamp;
 			set { this.timestamp = value; this.OnPropertyChanged(new PropertyChangedEventArgs(nameof(this.Timestamp))); }
 		}
-		private string topic;
+		private string? topic;
 		/// <summary>The channel topic, or null if none is set.</summary>
-		public string Topic {
+		public string? Topic {
 			get => this.topic;
 			set { this.topic = value; this.OnPropertyChanged(new PropertyChangedEventArgs(nameof(this.Topic))); }
 		}
-		private string topicSetter;
+		private string? topicSetter;
 		/// <summary>The name or hostmask of the user who set the topic (whichever the server decided to send).</summary>
-		public string TopicSetter {
+		public string? TopicSetter {
 			get => this.topicSetter;
 			set { this.topicSetter = value; this.OnPropertyChanged(new PropertyChangedEventArgs(nameof(this.TopicSetter))); }
 		}
@@ -48,35 +46,34 @@ namespace AnIRC {
 			get => this.userLimit;
 			set { this.userLimit = value; this.OnPropertyChanged(new PropertyChangedEventArgs(nameof(this.UserLimit))); }
 		}
-		private string key;
+		private string? key;
 		/// <summary>The key to the channel, or null if none is set.</summary>
-		public string Key {
+		public string? Key {
 			get => this.key;
 			set { this.key = value; this.OnPropertyChanged(new PropertyChangedEventArgs(nameof(this.Key))); }
 		}
 
 		/// <summary>Returns the <see cref="IrcChannelUser"/> representing the local user, or null if we aren't in the list.</summary>
-		public IrcChannelUser Me {
+		public IrcChannelUser? Me {
 			get {
 				this.Users.TryGetValue(this.Client.Me.Nickname, out var result);
 				return result;
 			}
 		}
 		/// <summary>Returns the local user's status on the list, or null if we aren't on the list.</summary>
-		public ChannelStatus MyStatus => this.Me?.Status;
+		public ChannelStatus? MyStatus => this.Me?.Status;
 
 		/// <summary>
 		/// Creates a new <see cref="IrcChannel"/> object with the specified name and associated with the given <see cref="IrcClient"/> object.
 		/// </summary>
 		/// <param name="client">The <see cref="IrcClient"/> that this channel belongs to.</param>
 		/// <param name="name">The name of the channel.</param>
-		public IrcChannel(IrcClient client, string name) {
-			this.Client = client;
+		public IrcChannel(IrcClient client, string name) : base(client, false) {
 			this.Users = new IrcChannelUserCollection(client);
 			this.Name = name;
 		}
 
-		public event PropertyChangedEventHandler PropertyChanged;
+		public event PropertyChangedEventHandler? PropertyChanged;
 		internal void OnPropertyChanged(PropertyChangedEventArgs e) => this.PropertyChanged?.Invoke(this, e);
 
 		/// <summary>

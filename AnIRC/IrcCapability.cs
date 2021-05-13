@@ -4,14 +4,14 @@
 	/// </summary>
 	public class IrcCapability {
 		public string Name { get; }
-		public string Parameter { get; }
+		public string? Parameter { get; }
 		public bool Sticky { get; }
 		public bool AckRequired { get; }
 
 		public IrcCapability(string name) : this(name, null, false, false) { }
-		public IrcCapability(string name, string parameter) : this(name, parameter, false, false) { }
+		public IrcCapability(string name, string? parameter) : this(name, parameter, false, false) { }
 		public IrcCapability(string name, bool sticky, bool ackRequired) : this(name, null, sticky, ackRequired) { }
-		public IrcCapability(string name, string parameter, bool sticky, bool ackRequired) {
+		public IrcCapability(string name, string? parameter, bool sticky, bool ackRequired) {
 			this.Name = name;
 			this.Parameter = parameter;
 			this.Sticky = sticky;
@@ -19,6 +19,6 @@
 		}
 
 		public override int GetHashCode() => this.Name.GetHashCode();
-		public override bool Equals(object other) => other != null && other is IrcCapability capability && this.Name == capability.Name;
+		public override bool Equals(object? other) => other is IrcCapability capability && this.Name == capability.Name;
 	}
 }

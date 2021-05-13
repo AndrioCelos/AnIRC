@@ -15,7 +15,7 @@ namespace AnIRC {
 	/// </remarks>
 	public class IrcExtensions : ReadOnlyDictionary<string, string> {
 		/// <summary>Returns the <see cref="IrcClient"/> that this <see cref="IrcExtensions"/> list belongs to.</summary>
-		public IrcClient Client { get; }
+		public IrcClient? Client { get; }
 
 		/// <summary>The RPL_ISUPPORT specification of the case mapping this server uses to compare nicknames and channel names.</summary>
 		/// <remarks>The value is case sensitive. There are three known values: <c>ascii</c>, <c>rfc1459</c> (the default) and <c>strict-rfc1459</c>.</remarks>
@@ -59,7 +59,7 @@ namespace AnIRC {
 		public ReadOnlyDictionary<char, char> StatusPrefix { get; protected internal set; }
 		/// <summary>The RPL_ISUPPORT specification of the status prefixes we may use to only talk to users on a channel with that status.</summary>
 		/// <remarks>Note that many servers require we also have that status to do this.</remarks>
-		public char[] StatusMessage { get; protected internal set; } = Array.Empty<char>();
+		public ReadOnlyCollection<char> StatusMessage { get; protected internal set; }
 		/// <summary>The RPL_ISUPPORT specification of the maximum number of targets we may give for certain commands.</summary>
 		/// <remarks>Each entry consists of the command and the corresponding limit. Any command that's not listed does not support multiple targets.</remarks>
 		public ReadOnlyDictionary<string, int> MaxTargets { get; protected internal set; }
@@ -70,7 +70,7 @@ namespace AnIRC {
 		public bool SupportsWhox { get; protected internal set; }
 
 		/// <summary>Returns an <see cref="IrcExtensions"/> object with the default parameters.</summary>
-		public static IrcExtensions Default { get; } = new IrcExtensions(null, null);
+		public static IrcExtensions Default { get; } = new IrcExtensions(null, "");
 
 		/// <summary>Returns true if all parameters have the default values.</summary>
 		public bool IsDefault => this.Count == 0;
@@ -93,162 +93,190 @@ namespace AnIRC {
 		internal List<char> allStatus = new() { 'q', 'a', 'o', 'h', 'v', 'V' };
 
 		/// <summary>Initializes a new instance of the <see cref="IrcExtensions"/> class with the default values and a specified network name.</summary>
-		internal IrcExtensions(IrcClient client, string networkName) : base(new Dictionary<string, string>()) {
+		internal IrcExtensions(IrcClient? client, string networkName) : base(new Dictionary<string, string>()) {
 			this.Client = client;
-			this.ChannelLimit = new ReadOnlyDictionary<string, int>(this.channelLimit);
-			this.ListModeLength = new ReadOnlyDictionary<string, int>(this.listModeLength);
+			this.ChannelLimit = new(this.channelLimit);
+			this.ListModeLength = new(this.listModeLength);
 			this.NetworkName = networkName;
-			this.StatusPrefix = new ReadOnlyDictionary<char, char>(this.statusPrefix);
-			this.MaxTargets = new ReadOnlyDictionary<string, int>(this.maxTargets);
+			this.StatusPrefix = new(this.statusPrefix);
+			this.StatusMessage = new(Array.Empty<char>());
+			this.MaxTargets = new(this.maxTargets);
 		}
 
-		/// <summary>Gets or sets the value of a parameter. To unset a parameter, set its value to null.</summary>
+		/// <summary>Gets the value of a parameter.</summary>
 		/// <param name="key">The name of the parameter to get or set. Case sensitive.</param>
 		public new string this[string key] {
 			get => base[key];
 			protected internal set {
 				string[] fields;
 
-				if (value == null) {
-					// A value is being removed.
-					this.Dictionary.Remove(key);
-				} else
-					this.Dictionary[key] = value;
+				this.Dictionary[key] = value ?? throw new ArgumentNullException(nameof(value));  // Setting to null is no longer supported. Use Remove instead.
 
 				switch (key) {  // Parameter names are case sensitive.
 					case "CASEMAPPING":
 						bool changed = value != this.CaseMapping;
-						this.CaseMapping = value ?? "rfc1459";
-						if (changed) this.Client.SetCaseMappingComparer();
+						this.CaseMapping = value;
+						if (changed) this.Client?.SetCaseMappingComparer();
 						break;
 					case "CHANLIMIT":
 						this.channelLimit.Clear();
-						if (value == null) {
-							this.channelLimit.Add("#&+!", int.MaxValue);
-						} else {
-							foreach (string field in value.Split(new char[] { ',' })) {
-								fields = field.Split(new char[] { ':' });
-								this.channelLimit.Add(fields[0], int.Parse(fields[1]));
-							}
+						foreach (string field in value.Split(new char[] { ',' })) {
+							fields = field.Split(new char[] { ':' });
+							this.channelLimit.Add(fields[0], int.Parse(fields[1]));
 						}
 						break;
 					case "CHANMODES":
-						if (value == null) {
-							this.ChanModes = ChannelModes.RFC1459;
-						} else {
-							var statusModes = this.ChanModes?.Status;
-							fields = value.Split(new char[] { ',' });
-							this.ChanModes = new ChannelModes(fields[0], fields[1], fields[2], fields[3], statusModes);
-						}
+						var statusModes = this.ChanModes?.Status;
+						fields = value.Split(new char[] { ',' });
+						this.ChanModes = new ChannelModes(fields[0], fields[1], fields[2], fields[3], statusModes);
 						break;
-					case "CHANNELLEN": this.ChannelLength = value == null ? 200 : int.Parse(value); break;
+					case "CHANNELLEN": this.ChannelLength = int.Parse(value); break;
 					case "CHANTYPES": this.ChannelTypes = new ReadOnlyCollection<char>((value ?? "#").ToCharArray()); break;
 					case "EXCEPTS":
-						if (value == null) {
-							this.SupportsBanExceptions = false;
-							this.BanExceptionsMode = '\0';
-						} else {
-							this.SupportsBanExceptions = true;
-							this.BanExceptionsMode = value == "" ? 'e' : value[0];
-						}
+						this.SupportsBanExceptions = true;
+						this.BanExceptionsMode = value == "" ? 'e' : value[0];
 						break;
 					case "INVEX":
-						if (value == null) {
-							this.SupportsInviteExceptions = false;
-							this.InviteExceptionsMode = '\0';
-						} else {
-							this.SupportsInviteExceptions = true;
-							this.InviteExceptionsMode = value == "" ? 'I' : value[0];
-						}
+						this.SupportsInviteExceptions = true;
+						this.InviteExceptionsMode = value == "" ? 'I' : value[0];
 						break;
-					case "KICKLEN": this.KickMessageLength = value == null ? int.MaxValue : int.Parse(value); break;
+					case "KICKLEN": this.KickMessageLength = int.Parse(value); break;
 					case "MAXBANS":  // Obsolete form of MAXLIST
 						this.listModeLength.Clear();
-						if (value != null) {
-							foreach (string entry in value.Split(new char[] { ',' })) {
-								this.listModeLength.Add("b" + this.BanExceptionsMode + this.InviteExceptionsMode, int.Parse(entry));
-							}
+						foreach (string entry in value.Split(new char[] { ',' })) {
+							this.listModeLength.Add("b" + this.BanExceptionsMode + this.InviteExceptionsMode, int.Parse(entry));
 						}
 						break;
 					case "MAXCHANNELS":  // Obsolete form of CHANLIMIT
-						string chantypes;
 						this.channelLimit.Clear();
-						if (this.TryGetValue("CHANTYPES", out chantypes))
+						if (this.TryGetValue("CHANTYPES", out var chantypes))
 							this.channelLimit.Add(chantypes, int.Parse(value));
 						else
 							this.channelLimit.Add("#&+!", int.Parse(value));
 						break;
 					case "MAXLIST":
 						this.listModeLength.Clear();
-						if (value != null) {
-							foreach (string entry in value.Split(new char[] { ',' })) {
-								fields = entry.Split(new char[] { ':' }, 2);
-								this.listModeLength.Add(fields[0], int.Parse(fields[1]));
-							}
+						foreach (string entry in value.Split(new char[] { ',' })) {
+							fields = entry.Split(new char[] { ':' }, 2);
+							this.listModeLength.Add(fields[0], int.Parse(fields[1]));
 						}
 						break;
-					case "MODES": this.Modes = value == null ? 3 : int.Parse(value); break;
+					case "MODES": this.Modes = int.Parse(value); break;
 					case "MONITOR":
-						this.MonitorLimit = value != null
-							? value == "" ? int.MaxValue : int.Parse(value)
-							: this.ContainsKey("WATCH") ? int.MaxValue : 0;
+						this.MonitorLimit = value == "" ? int.MaxValue : int.Parse(value);
 						break;
 					case "NETWORK": this.NetworkName = value; break;
-					case "NICKLEN": this.NicknameLength = value == null ? 9 : int.Parse(value); break;
+					case "NICKLEN": this.NicknameLength = int.Parse(value); break;
 					case "PREFIX":
 						this.statusPrefix.Clear();
 						this.allStatus.Clear();
-						if (value == null) {
-							this.statusPrefix.Add('@', 'o');
-							this.statusPrefix.Add('+', 'v');
-							this.allStatus = new List<char>() { 'q', 'a', 'o', 'h', 'v', 'V' };
-						} else {
-							if (value != "") {
-								var m = Regex.Match(value, @"^\(([a-zA-Z]*)\)(.*)$");
-								this.ChanModes.SetStatusModes(m.Groups[1].Value);
-								for (int j = 0; j < m.Groups[1].Value.Length; ++j) {
-									this.statusPrefix.Add(m.Groups[2].Value[j], m.Groups[1].Value[j]);
-									this.allStatus.Add(m.Groups[1].Value[j]);
-								}
+						if (value != "") {
+							var m = Regex.Match(value, @"^\(([a-zA-Z]*)\)(.*)$");
+							this.ChanModes.SetStatusModes(m.Groups[1].Value);
+							for (int j = 0; j < m.Groups[1].Value.Length; ++j) {
+								this.statusPrefix.Add(m.Groups[2].Value[j], m.Groups[1].Value[j]);
+								this.allStatus.Add(m.Groups[1].Value[j]);
 							}
-
-							// Add some common, but unsupported modes.
-							if (!this.allStatus.Contains('q')) this.InsertUnsupportedMode('q', new[] { 'a', 'o', 'h', 'v', 'V' });
-							if (!this.allStatus.Contains('a')) this.InsertUnsupportedMode('a', new[] { 'o', 'h', 'v', 'V' });
-							if (!this.allStatus.Contains('o')) this.InsertUnsupportedMode('o', new[] { 'h', 'v', 'V' });
-							if (!this.allStatus.Contains('h')) this.InsertUnsupportedMode('h', new[] { 'v', 'V' });
-							if (!this.allStatus.Contains('v')) this.InsertUnsupportedMode('v', new[] { 'V' });
-							if (!this.allStatus.Contains('V')) this.allStatus.Add('V');
 						}
+
+						// Add some common, but unsupported modes.
+						this.InsertUnsupportedMode('q');
+						this.InsertUnsupportedMode('a', 'q');
+						this.InsertUnsupportedMode('o', 'q', 'a');
+						this.InsertUnsupportedMode('h', 'q', 'a', 'o');
+						this.InsertUnsupportedMode('v', 'q', 'a', 'o', 'h');
+						this.InsertUnsupportedMode('V', 'q', 'a', 'o', 'h', 'v');
 						break;
-					case "STATUSMSG": this.StatusMessage = value?.ToCharArray(); break;
+					case "STATUSMSG": this.StatusMessage = new(value.ToCharArray()); break;
 					case "TARGMAX":
 						this.maxTargets.Clear();
-						if (value != null) {
-							foreach (string field in value.Split(new char[] { ',' })) {
-								fields = field.Split(new char[] { ':' }, 2);
-								if (fields[1] == "")
-									this.maxTargets.Remove(fields[0]);
-								else
-									this.maxTargets.Add(fields[0], int.Parse(fields[1]));
-							}
+						foreach (string field in value.Split(new char[] { ',' })) {
+							fields = field.Split(new char[] { ':' }, 2);
+							if (fields[1] == "")
+								this.maxTargets.Remove(fields[0]);
+							else
+								this.maxTargets.Add(fields[0], int.Parse(fields[1]));
 						}
 						break;
 					case "TOPICLEN": this.TopicLength = string.IsNullOrEmpty(value) ? int.MaxValue : int.Parse(value); break;
 					case "WATCH":
 						if (!this.ContainsKey("MONITOR")) {
-							this.MonitorLimit = value != null ? int.MaxValue : 0;
+							this.MonitorLimit = int.MaxValue;
 						}
 						break;
-					case "WHOX": this.SupportsWhox = value != null; break;
+					case "WHOX": this.SupportsWhox = true; break;
 				}
 			}
 		}
 
-		private void InsertUnsupportedMode(char mode, params char[] before) {
+		internal void Remove(string key) {
+			var result = this.Dictionary.Remove(key);
+			if (!result) return;  // Nothing happened.
+
+			switch (key) {  // Parameter names are case sensitive.
+				case "CASEMAPPING":
+					if (this.CaseMapping != "rfc1459") {
+						this.CaseMapping = "rfc1459";
+						this.Client?.SetCaseMappingComparer();
+					}
+					break;
+				case "CHANLIMIT":
+					this.channelLimit.Clear();
+					this.channelLimit.Add("#&+!", int.MaxValue);
+					break;
+				case "CHANMODES":
+					this.ChanModes = ChannelModes.RFC1459;
+					break;
+				case "CHANNELLEN": this.ChannelLength = 200; break;
+				case "CHANTYPES": this.ChannelTypes = new ReadOnlyCollection<char>(new[] { '#' }); break;
+				case "EXCEPTS":
+					this.SupportsBanExceptions = false;
+					this.BanExceptionsMode = '\0';
+					break;
+				case "INVEX":
+					this.SupportsInviteExceptions = false;
+					this.InviteExceptionsMode = '\0';
+					break;
+				case "KICKLEN": this.KickMessageLength = int.MaxValue; break;
+				case "MAXBANS":  // Obsolete form of MAXLIST
+					this.listModeLength.Clear();
+					break;
+				case "MAXCHANNELS":  // Obsolete form of CHANLIMIT
+					this.channelLimit.Clear();
+					break;
+				case "MAXLIST":
+					this.listModeLength.Clear();
+					break;
+				case "MODES": this.Modes = 3; break;
+				case "MONITOR": this.MonitorLimit = this.ContainsKey("WATCH") ? int.MaxValue : 0; break;
+				//case "NETWORK": break;  // Ignore unsetting NETWORK.
+				case "NICKLEN": this.NicknameLength = 9; break;
+				case "PREFIX":
+					this.statusPrefix.Clear();
+					this.allStatus.Clear();
+					this.statusPrefix.Add('@', 'o');
+					this.statusPrefix.Add('+', 'v');
+					this.allStatus = new List<char>() { 'q', 'a', 'o', 'h', 'v', 'V' };
+					break;
+				case "STATUSMSG": this.StatusMessage = new(Array.Empty<char>()); break;
+				case "TARGMAX": this.maxTargets.Clear(); break;
+				case "TOPICLEN": this.TopicLength = int.MaxValue; break;
+				case "WATCH":
+					if (!this.ContainsKey("MONITOR")) this.MonitorLimit = 0;
+					break;
+				case "WHOX": this.SupportsWhox = false; break;
+			}
+		}
+
+		private void InsertUnsupportedMode(char mode) {
+			if (!this.allStatus.Contains(mode)) this.allStatus.Insert(0, mode);
+		}
+		private void InsertUnsupportedMode(char mode, params char[] after) {
+			if (this.allStatus.Contains(mode)) return;
+
 			int pos;
-			for (pos = 0; pos < this.allStatus.Count; ++pos)
-				if (before.Contains(this.allStatus[pos])) break;
+			for (pos = this.allStatus.Count; pos > 0; --pos)
+				if (after.Contains(this.allStatus[pos - 1])) break;
 
 			this.allStatus.Insert(pos, mode);
 		}

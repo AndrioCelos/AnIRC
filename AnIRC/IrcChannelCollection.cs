@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace AnIRC {
 	/// <summary>
@@ -37,7 +38,7 @@ namespace AnIRC {
 		/// <summary>Attempts to get the channel with the specified name and returns a value indicating whether it was found.</summary>
 		/// <param name="name">The name to search for.</param>
 		/// <param name="value">When this method returns, contains the <see cref="IrcChannel"/> searched for, or null if no such channel is in the list.</param>
-		public bool TryGetValue(string name, out IrcChannel value) => this.Channels.TryGetValue(name, out value);
+		public bool TryGetValue(string name, [MaybeNullWhen(false)] out IrcChannel value) => this.Channels.TryGetValue(name, out value);
 
 		/// <summary>Returns an enumerator that enumerates the <see cref="IrcChannel"/>s in this list. The order is undefined.</summary>
 		public IEnumerator<IrcChannel> GetEnumerator() => this.Channels.Values.GetEnumerator();

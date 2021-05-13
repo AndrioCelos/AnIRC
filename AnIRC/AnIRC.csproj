@@ -9,6 +9,7 @@
     <Copyright>© 2015-2021 Andrea Giannone</Copyright>
     <PackageLicenseFile>license.md</PackageLicenseFile>
     <LangVersion>preview</LangVersion>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>

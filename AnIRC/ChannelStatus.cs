@@ -19,7 +19,7 @@ namespace AnIRC {
 	/// </example>
 	public class ChannelStatus : ISet<char>, IReadOnlyCollection<char>, IComparable<ChannelStatus>, IEquatable<ChannelStatus> {
 		/// <summary>The <see cref="IrcClient"/> that this object belongs to.</summary>
-		public IrcClient Client { get; }
+		public IrcClient? Client { get; }
 
 		private readonly HashSet<char> modes;
 
@@ -75,22 +75,22 @@ namespace AnIRC {
 		public ChannelStatus() : this(null) { }
 		/// <summary>Initializes a new empty <see cref="ChannelStatus"/> set associated with the given <see cref="IrcClient"/>.</summary>
 		/// <param name="client">The <see cref="IrcClient"/> object to which the new object is relevant.</param>
-		public ChannelStatus(IrcClient client) {
+		public ChannelStatus(IrcClient? client) {
 			this.Client = client;
-			this.modes = new HashSet<char>();
+			this.modes = new();
 		}
 		/// <summary>Initializes a new <see cref="ChannelStatus"/> object associated with the given <see cref="IrcClient"/> and with the given set of channel modes.</summary>
 		/// <param name="client">The <see cref="IrcClient"/> object to which the new object is relevant.</param>
 		/// <param name="modes">An <see cref="IEnumerable{T}"/> of <see cref="char"/> containing channel modes to add to the set.</param>
-		public ChannelStatus(IrcClient client, IEnumerable<char> modes) {
+		public ChannelStatus(IrcClient? client, IEnumerable<char> modes) {
 			this.Client = client;
-			this.modes = new HashSet<char>(modes);
+			this.modes = new(modes);
 		}
 
 		/// <summary>Initializes a new ChannelStatus object associated with the given <see cref="IrcClient"/> and with the given status prefixes.</summary>
 		/// <param name="client">The <see cref="IrcClient"/> object to which the new object is relevant.</param>
 		/// <param name="prefixes">The prefixes to add to the set. Unrecognizes prefixes are ignored.</param>
-		public static ChannelStatus FromPrefix(IrcClient client, IEnumerable<char> prefixes) {
+		public static ChannelStatus FromPrefix(IrcClient? client, IEnumerable<char> prefixes) {
 			var extensions = client?.Extensions ?? IrcExtensions.Default;
 			var prefixTable = extensions.StatusPrefix;
 
@@ -115,12 +115,12 @@ namespace AnIRC {
 		/// Compares this <see cref="ChannelStatus"/> object with another object and returns true if they are equal.
 		/// <para>Two sets with the same highest ranking mode are considered equal regardless of lower-ranking modes.</para>
 		/// </summary>
-		public override bool Equals(object other) => this == other as ChannelStatus;
+		public override bool Equals(object? other) => this == other as ChannelStatus;
 		/// <summary>
 		/// Compares this <see cref="ChannelStatus"/> object with another <see cref="ChannelStatus"/> object and returns true if they are equal.
 		/// <para>Two sets with the same highest ranking mode are considered equal regardless of lower-ranking modes.</para>
 		/// </summary>
-		public bool Equals(ChannelStatus other) => this == other;
+		public bool Equals(ChannelStatus? other) => this == other;
 
 		/// <summary>
 		///     Compares this <see cref="ChannelStatus"/> object with another <see cref="ChannelStatus"/> object and returns a value indicating their relative power level.
@@ -139,7 +139,7 @@ namespace AnIRC {
 		///     <para>For example, on networks that don't have halfops,
 		///         <c>user.Status >= <see cref="Halfop"/></c> is equivalent to <c>user.Status > <see cref="Voice"/></c>.</para>
 		/// </remarks>
-		public int CompareTo(ChannelStatus other) {
+		public int CompareTo(ChannelStatus? other) {
 			if (other is null) return 1;
 
 			var extensions = this.Client?.Extensions ?? other.Client?.Extensions ?? IrcExtensions.Default;
@@ -166,48 +166,56 @@ namespace AnIRC {
 		public override int GetHashCode() => this.ToString().GetHashCode();
 
 		/// <summary>Returns the channel modes represented by this ChannelStatus object.</summary>
-		public override string ToString() => new(this.modes.ToArray());
+		public override string ToString() {
+			var builder = new StringBuilder(this.Count);
+
+			var extensions = this.Client?.Extensions ?? IrcExtensions.Default;
+			foreach (var mode in extensions.allStatus) {
+				if (this.Contains(mode)) builder.Append(mode);
+			}
+			return builder.ToString();
+		}
 
 		/// <summary>
 		/// Compares this <see cref="ChannelStatus"/> object with another object and returns true if they are equal.
 		/// <para>Two sets with the same highest ranking mode are considered equal regardless of lower-ranking modes.</para>
 		/// </summary>
-		public static bool operator ==(ChannelStatus v1, ChannelStatus v2)
+		public static bool operator ==(ChannelStatus? v1, ChannelStatus? v2)
 			=> v1 is null ? v2 is null : v1.CompareTo(v2) == 0;
 
 		/// <summary>
 		/// Compares this <see cref="ChannelStatus"/> object with another object and returns true if they are not equal.
 		/// <para>Two sets with the same highest ranking mode are considered equal regardless of lower-ranking modes.</para>
 		/// </summary>
-		public static bool operator !=(ChannelStatus v1, ChannelStatus v2)
+		public static bool operator !=(ChannelStatus? v1, ChannelStatus? v2)
 			=> v1 is null ? v2 is not null : v1.CompareTo(v2) != 0;
 
 		/// <summary>
 		/// Returns true if <paramref name="v1"/> represents a lower status than <paramref name="v2"/>.
 		/// <para>Two sets with the same highest ranking mode are considered equal regardless of lower-ranking modes.</para>
 		/// </summary>
-		public static bool operator <(ChannelStatus v1, ChannelStatus v2)
+		public static bool operator <(ChannelStatus? v1, ChannelStatus? v2)
 			=> v1 is null ? v2 is not null : v1.CompareTo(v2) < 0;
 
 		/// <summary>
 		/// Returns true if <paramref name="v1"/> represents a lower or equal status to <paramref name="v2"/>.
 		/// <para>Two sets with the same highest ranking mode are considered equal regardless of lower-ranking modes.</para>
 		/// </summary>
-		public static bool operator <=(ChannelStatus v1, ChannelStatus v2)
+		public static bool operator <=(ChannelStatus? v1, ChannelStatus? v2)
 			=> v1 is null || v1.CompareTo(v2) <= 0;
 
 		/// <summary>
 		/// Returns true if <paramref name="v1"/> represents a higher or equal status to <paramref name="v2"/>.
 		/// <para>Two sets with the same highest ranking mode are considered equal regardless of lower-ranking modes.</para>
 		/// </summary>
-		public static bool operator >=(ChannelStatus v1, ChannelStatus v2)
+		public static bool operator >=(ChannelStatus? v1, ChannelStatus? v2)
 			=> v1 is null ? v2 is null : v1.CompareTo(v2) >= 0;
 
 		/// <summary>
 		/// Returns true if <paramref name="v1"/> represents a higher status than <paramref name="v2"/>.
 		/// <para>Two sets with the same highest ranking mode are considered equal regardless of lower-ranking modes.</para>
 		/// </summary>
-		public static bool operator >(ChannelStatus v1, ChannelStatus v2)
+		public static bool operator >(ChannelStatus? v1, ChannelStatus? v2)
 			=> v1 is not null && v1.CompareTo(v2) > 0;
 
 		#region Set methods

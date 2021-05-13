@@ -52,9 +52,9 @@ namespace AnIRC {
 		/// Each element in the list must either match the parameter in the corresponding position (case insensitive) or be null.
 		/// If this is null or empty, no checks on parameters will be done.
 		/// </remarks>
-		public ReadOnlyCollection<string> Parameters { get; }
+		public ReadOnlyCollection<string?>? Parameters { get; }
 		/// <summary>Provides read-write access to the <see cref="Parameters"/> collection.</summary>
-		protected IList<string> ParametersSource { get; }
+		protected IList<string?>? ParametersSource { get; }
 
 		/// <summary>Returns a <see cref="Task"/> object representing the status of this <see cref="AsyncRequest"/>.</summary>
 		/// <remarks>
@@ -72,11 +72,11 @@ namespace AnIRC {
 		/// <summary>Initializes a new <see cref="AsyncRequest"/> waiting for the specified list of replies and parameters.</summary>
 		/// <param name="replies">A dictionary with the replies waited on as keys. For each, if the corresponding value is true, the reply is considered a final reply.</param>
 		/// <param name="parameters">If not null, a list of parameters that must be present in the reply for this <see cref="AsyncRequest"/> to be triggered. Null values match anything.</param>
-		protected AsyncRequest(IDictionary<string, bool> replies, IList<string> parameters) {
-			this.RepliesSource = replies;
+		protected AsyncRequest(IDictionary<string, bool> replies, IList<string?>? parameters) {
+			this.RepliesSource = replies ?? throw new ArgumentNullException(nameof(replies));
 			this.Replies = new ReadOnlyDictionary<string, bool>(replies);
-			this.ParametersSource = parameters;
-			this.Parameters = parameters != null ? new ReadOnlyCollection<string>(parameters) : null;
+			this.ParametersSource = parameters ?? throw new ArgumentNullException(nameof(parameters));
+			this.Parameters = parameters != null ? new ReadOnlyCollection<string?>(parameters) : null;
 		}
 
 		/// <summary>Called when one of the replies listed in the <see cref="Replies"/> table is received.</summary>
@@ -93,7 +93,7 @@ namespace AnIRC {
 		/// </summary>
 		public class VoidAsyncRequest : AsyncRequest {
 			/// <summary>Returns a <see cref="TaskCompletionSource{TResult}"/> that can be used to affect the <see cref="Task"/> property.</summary>
-			protected TaskCompletionSource<object> TaskSource { get; } = new TaskCompletionSource<object>();
+			protected TaskCompletionSource<object?> TaskSource { get; } = new();
 			/// <summary>Returns a <see cref="Task"/> object representing the status of this <see cref="AsyncRequest"/>.</summary>
 			/// <remarks>This task will complete when a final response is received.</remarks>
 			public override Task Task => this.TaskSource.Task;
@@ -101,21 +101,16 @@ namespace AnIRC {
 			public override bool CanTimeout { get; }
 
 			private readonly IrcClient client;
-			private readonly string nickname;
+			private readonly string? nickname;
 			private readonly HashSet<string> errors;
 
-			/// <summary>Initializes a new <see cref="VoidAsyncRequest"/> that listens for the specified replies with the specified list of parameters.</summary>
-			/// <param name="replies">The set of replies to listen for.</param>
-			/// <param name="parameters">If not null, a list of parameters that must be present in the reply for this <see cref="AsyncRequest"/> to be triggered. Null values match anything.</param>
-			public VoidAsyncRequest(IDictionary<string, bool> replies, IList<string> parameters) : base(replies, parameters)
-				=> this.CanTimeout = true;
 			/// <summary>Initializes a new <see cref="VoidAsyncRequest"/> that listens for the specified replies with the specified list of parameters.</summary>
 			/// <param name="client">The <see cref="IrcClient"/> that this <see cref="AsyncRequest"/> belongs to.</param>
 			/// <param name="nickname">If not null, the entity sending the message must have the specified nickname.</param>
 			/// <param name="successReply">A reply that is considered a successful reply.</param>
 			/// <param name="parameters">If not null, a list of parameters that must be present in the reply for this <see cref="AsyncRequest"/> to be triggered. Null values match anything.</param>
 			/// <param name="errors">A list of replies that are considered error replies, and will cause this <see cref="AsyncRequest"/> to throw an <see cref="AsyncRequestErrorException"/>.</param>
-			public VoidAsyncRequest(IrcClient client, string nickname, string successReply, IList<string> parameters, params string[] errors)
+			public VoidAsyncRequest(IrcClient client, string? nickname, string successReply, IList<string?>? parameters, params string[] errors)
 				: this(client, nickname, successReply, parameters, true, errors) { }
 			/// <summary>Initializes a new <see cref="VoidAsyncRequest"/> that listens for the specified replies with the specified list of parameters.</summary>
 			/// <param name="client">The <see cref="IrcClient"/> that this <see cref="AsyncRequest"/> belongs to.</param>
@@ -124,9 +119,9 @@ namespace AnIRC {
 			/// <param name="parameters">If not null, a list of parameters that must be present in the reply for this <see cref="AsyncRequest"/> to be triggered. Null values match anything.</param>
 			/// <param name="canTimeout">Specifies whether this <see cref="AsyncRequest"/> can time out.</param>
 			/// <param name="errors">A list of replies that are considered error replies, and will cause this <see cref="AsyncRequest"/> to throw an <see cref="AsyncRequestErrorException"/>.</param>
-			public VoidAsyncRequest(IrcClient client, string nickname, string successReply, IList<string> parameters, bool canTimeout, params string[] errors)
+			public VoidAsyncRequest(IrcClient client, string? nickname, string successReply, IList<string?>? parameters, bool canTimeout, params string[] errors)
 				: base(GetReplies(successReply, errors), parameters) {
-				this.client = client;
+				this.client = client ?? throw new ArgumentNullException(nameof(client));
 				this.nickname = nickname;
 				this.errors = new HashSet<string>(errors);
 				this.CanTimeout = canTimeout;
@@ -186,7 +181,7 @@ namespace AnIRC {
 
 			/// <summary>Initializes a new <see cref="WhoAsyncRequest"/> for the specified channel, associated with the specified <see cref="IrcClient"/>.</summary>
 			public WhoAsyncRequest(IrcClient client, string target) : base(replies, new[] { null, target }) {
-				this.client = client;
+				this.client = client ?? throw new ArgumentNullException(nameof(client));
 				this.responses = new List<WhoResponse>();
 				this.Responses = this.responses.AsReadOnly();
 			}
@@ -196,38 +191,32 @@ namespace AnIRC {
 					case RPL_WHOREPLY:
 						string[] fields = line.Parameters[7].Split(new char[] { ' ' }, 2);
 
-						var reply = new WhoResponse() {
-							Ident = line.Parameters[2],
-							Host = line.Parameters[3],
-							Server = line.Parameters[4],
-							Nickname = line.Parameters[5],
-							HopCount = int.Parse(fields[0]),
-							FullName = fields[1]
-						};
+						bool away = false, oper = false; string? channel; ChannelStatus? channelStatus;
 
-						if (line.Parameters[1] != "*") {
-							reply.Channel = line.Parameters[1];
-							reply.ChannelStatus = new ChannelStatus(this.client);
+						if (line.Parameters[1] == "*") {
+							channel = null;
+							channelStatus = null;
+						} else {
+							channel = line.Parameters[1];
+							channelStatus = new ChannelStatus(this.client);
 						}
 
 						foreach (char flag in line.Parameters[6]) {
 							switch (flag) {
 								case 'G':
-									reply.Away = true;
+									away = true;
 									break;
 								case '*':
-									reply.Oper = true;
+									oper = true;
 									break;
 								default:
-									if (this.client.Extensions.StatusPrefix.TryGetValue(flag, out char mode)) {
-										if (reply.ChannelStatus == null) reply.ChannelStatus = new ChannelStatus(this.client);
-										reply.ChannelStatus.Add(mode);
-									}
+									if (channelStatus is not null && this.client.Extensions.StatusPrefix.TryGetValue(flag, out char mode))
+										channelStatus.Add(mode);
 									break;
 							}
 						}
 
-						this.responses.Add(reply);
+						this.responses.Add(new(channel, line.Parameters[2], line.Parameters[3], line.Parameters[4], line.Parameters[5], away, oper, channelStatus, int.Parse(fields[0]), fields[1]));
 						break;
 
 					case RPL_ENDOFWHO:
@@ -285,9 +274,9 @@ namespace AnIRC {
 						throw new ArgumentException("Query type string contains invalid characters.", nameof(queryType));
 				}
 
-				this.client = client;
-				this.Target = target;
-				this.QueryType = queryType;
+				this.client = client ?? throw new ArgumentNullException(nameof(client));
+				this.Target = target ?? throw new ArgumentNullException(nameof(target));
+				this.QueryType = queryType ?? throw new ArgumentNullException(nameof(queryType));
 
 				this.fields = fields.ToArray();
 				this.Fields = Array.AsReadOnly(this.fields);
@@ -299,7 +288,9 @@ namespace AnIRC {
 					case RPL_WHOSPCRPL:
 						if (line.Parameters.Length != this.fields.Length + 1) return false;
 
-						var reply = new WhoResponse();
+						string? channel = null; string ident = null; string host = null; string ipAddress = null; string server = null; string nickname = null;
+						bool away = false; bool oper = false; ChannelStatus? channelStatus = null; int hopCount = -1; int idleTime = 0; string? account = null; string fullName = null;
+
 
 						for (int i = line.Parameters.Length - 1; i >= 1; --i) {
 							switch (this.fields[i - 1]) {
@@ -307,37 +298,37 @@ namespace AnIRC {
 									if (line.Parameters[i] != this.QueryType) return false;
 									break;
 								case WhoxField.Channel:
-									reply.Channel = line.Parameters[i];
+									channel = line.Parameters[i];
 									break;
 								case WhoxField.Ident:
-									reply.Ident = line.Parameters[i];
+									ident = line.Parameters[i];
 									break;
 								case WhoxField.Host:
-									reply.Host = line.Parameters[i];
+									host = line.Parameters[i];
 									break;
 								case WhoxField.IPAddress:
 									if (line.Parameters[i] != "255.255.255.255")
-										reply.IPAddress = line.Parameters[i];
+										ipAddress = line.Parameters[i];
 									break;
 								case WhoxField.ServerName:
-									reply.Server = line.Parameters[i];
+									server = line.Parameters[i];
 									break;
 								case WhoxField.Nickname:
-									reply.Nickname = line.Parameters[i];
+									nickname = line.Parameters[i];
 									break;
 								case WhoxField.Flags:
 									foreach (char flag in line.Parameters[i]) {
 										switch (flag) {
 											case 'G':
-												reply.Away = true;
+												away = true;
 												break;
 											case '*':
-												reply.Oper = true;
+												oper = true;
 												break;
 											default:
 												if (this.client.Extensions.StatusPrefix.TryGetValue(flag, out char mode)) {
-													if (reply.ChannelStatus == null) reply.ChannelStatus = new ChannelStatus(this.client);
-													reply.ChannelStatus.Add(mode);
+													if (channelStatus == null) channelStatus = new ChannelStatus(this.client);
+													channelStatus.Add(mode);
 												}
 												break;
 										}
@@ -345,23 +336,23 @@ namespace AnIRC {
 									break;
 								case WhoxField.HopCount:
 									if (line.Parameters[i] != "0")
-										reply.HopCount = int.Parse(line.Parameters[i]);
+										hopCount = int.Parse(line.Parameters[i]);
 									break;
 								case WhoxField.IdleTime:
 									if (line.Parameters[i] != "0")
-										reply.IdleTime = int.Parse(line.Parameters[i]);
+										idleTime = int.Parse(line.Parameters[i]);
 									break;
 								case WhoxField.Account:
 									if (line.Parameters[i] != "0")
-										reply.Account = line.Parameters[i];
+										account = line.Parameters[i];
 									break;
 								case WhoxField.FullName:
-									reply.FullName = line.Parameters[i];
+									fullName = line.Parameters[i];
 									break;
 							}
 						}
 
-						this.responses.Add(reply);
+						this.responses.Add(new(channel, ident, host, server, nickname, away, oper, channelStatus, hopCount, fullName) { Account = account, IdleTime = idleTime, IPAddress = ipAddress });
 						break;
 
 					case RPL_ENDOFWHO:
@@ -417,8 +408,24 @@ namespace AnIRC {
 			};
 
 			private readonly IrcClient client;
-			private readonly WhoisResponse response;
-			private IrcLine error;
+
+			// WhoisResponse values
+			private string? nickname;
+			private string? ident;
+			private string? host;
+			private string? fullName;
+			private string? serverName;
+			private string? serverInfo;
+			private bool oper;
+			private TimeSpan? idleTime;
+			private DateTime? signonTime;
+			private string? providingServerName;
+			private string? awayMessage;
+			private string? account;
+			private readonly List<IrcLine> lines = new();
+			private readonly Dictionary<string, ChannelStatus> channels;
+
+			private IrcLine? error;
 
 			private TaskCompletionSource<WhoisResponse> TaskSource { get; } = new TaskCompletionSource<WhoisResponse>();
 			public string Target { get; }
@@ -427,55 +434,57 @@ namespace AnIRC {
 
 			/// <summary>Initializes a new <see cref="WhoisAsyncRequest"/> for the specified nickname, associated with the specified <see cref="IrcClient"/>.</summary>
 			public WhoisAsyncRequest(IrcClient client, string target) : base(replies, new[] { null, target }) {
-				this.client = client;
-				this.Target = target;
-				this.response = new WhoisResponse(client);
+				this.client = client ?? throw new ArgumentNullException(nameof(client));
+				this.Target = target ?? throw new ArgumentNullException(nameof(target));
+				this.channels = new(this.client.CaseMappingComparer);
 			}
 
 			protected internal override bool OnReply(IrcLine line, ref bool final) {
-				this.response.lines.Add(line);
+				this.lines.Add(line);
 
 				switch (line.Message) {
 					case RPL_AWAY:
-						this.response.AwayMessage = line.Parameters[2];
+						this.awayMessage = line.Parameters[2];
 						break;
 					case RPL_WHOISREGNICK:
-						if (this.response.Account == null) this.response.Account = line.Parameters[1];
+						if (this.account == null) this.account = line.Parameters[1];
 						break;
 					case RPL_WHOISUSER:
-						this.response.Nickname = line.Parameters[1];
-						this.response.Ident = line.Parameters[2];
-						this.response.Host = line.Parameters[3];
-						this.response.FullName = line.Parameters[5];
+						this.nickname = line.Parameters[1];
+						this.ident = line.Parameters[2];
+						this.host = line.Parameters[3];
+						this.fullName = line.Parameters[5];
+						this.providingServerName = line.Prefix;
 						break;
 					case RPL_WHOISSERVER:
-						this.response.ServerName = line.Parameters[2];
-						this.response.ServerInfo = line.Parameters[3];
+						this.serverName = line.Parameters[2];
+						this.serverInfo = line.Parameters[3];
 						break;
 					case RPL_WHOISOPERATOR:
-						this.response.Oper = true;
+						this.oper = true;
 						break;
 					case RPL_WHOISIDLE:
-						this.response.IdleTime = TimeSpan.FromSeconds(long.Parse(line.Parameters[2]));
+						this.idleTime = TimeSpan.FromSeconds(long.Parse(line.Parameters[2]));
 						if (line.Parameters.Length > 4)
-							this.response.SignonTime = IrcClient.DecodeUnixTime(long.Parse(line.Parameters[3]));
+							this.signonTime = IrcClient.DecodeUnixTime(long.Parse(line.Parameters[3]));
 						break;
 					case RPL_WHOISCHANNELS:
 						foreach (var token in line.Parameters[2].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)) {
 							for (int i = 0; i < token.Length; ++i) {
 								if (this.client.Extensions.ChannelTypes.Contains(token[i])) {
-									this.response.channels.Add(token[i..], ChannelStatus.FromPrefix(this.client, token.Take(i)));
+									this.channels.Add(token[i..], ChannelStatus.FromPrefix(this.client, token.Take(i)));
 									break;
 								}
 							}
 						}
 						break;
 					case RPL_WHOISACCOUNT:
-						this.response.Account = line.Parameters[2];
+						this.account = line.Parameters[2];
 						break; 
 					case RPL_ENDOFWHOIS:
-						if (this.response.Nickname != null) {
-							this.TaskSource.SetResult(this.response);
+						if (this.nickname != null) {
+							this.TaskSource.SetResult(new(this.nickname, this.ident ?? "*", this.host ?? "*", this.fullName ?? "", this.serverName ?? "", this.serverInfo ?? "", this.oper,
+								this.idleTime, this.signonTime, this.providingServerName ?? "", this.awayMessage, this.account, this.lines, this.channels));
 						} else if (this.error != null) {
 							this.TaskSource.SetException(new AsyncRequestErrorException(line));
 						} else {
@@ -487,7 +496,7 @@ namespace AnIRC {
 					case ERR_NOSUCHSERVER:
 					case ERR_NOSUCHNICK:
 					case ERR_NONICKNAMEGIVEN:
-						if (this.error == null) this.error = line;
+						if (this.error == null) this.error = line ?? throw new ArgumentNullException(nameof(line));
 						break;
 				}
 				return true;
@@ -517,21 +526,21 @@ namespace AnIRC {
 
 			private readonly IrcClient client;
 
-			private TaskCompletionSource<string> TaskSource { get; } = new TaskCompletionSource<string>();
+			private TaskCompletionSource<string?> TaskSource { get; } = new();
 			private readonly string target;
 			private readonly string request;
 			/// <summary>Returns a <see cref="Task{TResult}"/> of <see cref="string"/> representing the status of the request.</summary>
 			public override Task Task => this.TaskSource.Task;
 
 			public CtcpAsyncRequest(IrcClient client, string target, string request) : base(replies) {
-				this.client = client;
-				this.target = target;
-				this.request = request;
+				this.client = client ?? throw new ArgumentNullException(nameof(client));
+				this.target = target ?? throw new ArgumentNullException(nameof(target));
+				this.request = request ?? throw new ArgumentNullException(nameof(request));
 			}
 
 			protected internal override bool OnReply(IrcLine line, ref bool final) {
 				if (this.client.CaseMappingComparer.Equals(line.Message, "NOTICE")) {
-					if (line.Parameters[1].Length >= 2 && line.Parameters[1].StartsWith("\u0001") && line.Parameters[1].EndsWith("\u0001") &&
+					if (line.Parameters[1].Length >= 2 && line.Parameters[1].StartsWith("\u0001") && line.Parameters[1].EndsWith("\u0001") && line.Prefix is not null &&
 						this.client.CaseMappingComparer.Equals(Hostmask.GetNickname(line.Prefix), this.target) &&
 						this.client.CaseMappingComparer.Equals(line.Parameters[0], this.client.Me.Nickname)) {
 						var fields = line.Parameters[1][1..^1].Split(new[] { ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
@@ -579,12 +588,12 @@ namespace AnIRC {
 			/// <param name="target">The entity to listen for a message to, which should be either the local user or a channel.</param>
 			/// <param name="notice">Specifies whether to listen for a NOTICE instead of a PRIVMSG.</param>
 			public MessageAsyncRequest(IrcUser user, IrcMessageTarget target, bool notice) : base(notice ? repliesNotice : repliesPrivmsg) {
-				this.user = user;
-				this.target = target;
+				this.user = user ?? throw new ArgumentNullException(nameof(user));
+				this.target = target ?? throw new ArgumentNullException(nameof(target));
 			}
 
 			protected internal override bool OnReply(IrcLine line, ref bool final) {
-				if (this.user.Client.CaseMappingComparer.Equals(Hostmask.GetNickname(line.Prefix ?? this.user.Client.ServerName), this.user.Nickname) &&
+				if (this.user.Client.CaseMappingComparer.Equals(Hostmask.GetNickname(line.Prefix ?? this.user.Client.ServerName!), this.user.Nickname) &&
 					this.user.Client.CaseMappingComparer.Equals(line.Parameters[0], this.target.Target)) {
 					this.TaskSource.SetResult(line.Parameters[1]);
 					final = true;
@@ -604,7 +613,7 @@ namespace AnIRC {
 		/// <summary>Returns the error reply that was received.</summary>
 		public IrcLine Line { get; }
 
-		public AsyncRequestErrorException(IrcLine line) : base(line.Parameters[^1]) => this.Line = line;
+		public AsyncRequestErrorException(IrcLine line) : base(line.Parameters[^1]) => this.Line = line ?? throw new ArgumentNullException(nameof(line));
 	}
 
 	/// <summary>
@@ -622,7 +631,7 @@ namespace AnIRC {
 		/// <summary>Initializes a new <see cref="AsyncRequestDisconnectedException"/> object with the specified <see cref="AnIRC.DisconnectReason"/> value and inner exception.</summary>
 		/// <param name="reason">A <see cref="AnIRC.DisconnectReason"/> value indicating the cause of the disconnection.</param>
 		/// <param name="inner">The exception that caused or resulted from the disconnection.</param>
-		public AsyncRequestDisconnectedException(DisconnectReason reason, Exception inner) : base(defaultMessage, inner) => this.DisconnectReason = reason;
+		public AsyncRequestDisconnectedException(DisconnectReason reason, Exception? inner) : base(defaultMessage, inner) => this.DisconnectReason = reason;
 	}
 
 }

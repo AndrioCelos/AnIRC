@@ -60,9 +60,9 @@ namespace AnIRC {
 		/// <param name="p1">The first string to compare.</param>
 		/// <param name="p2">The second string to compare.</param>
 		/// <returns>True if the strings are equivalent, or both null; false otherwise.</returns>
-		public override bool Equals(string p1, string p2) {
+		public override bool Equals(string? p1, string? p2) {
 			if (ReferenceEquals(p1, p2)) return true;
-			if (p1 == null || p2 == null) return false;
+			if (p1 is null || p2 is null) return false;
 			if (p1.Length != p2.Length) return false;
 
 			for (int i = 0; i < p1.Length; ++i) {
@@ -87,10 +87,10 @@ namespace AnIRC {
 		///     a positive number if p1 comes after p2, or p2 is null;
 		///     a negative number if p1 comes before p2, or p1 is null.
 		/// </returns>
-		public override int Compare(string p1, string p2) {
+		public override int Compare(string? p1, string? p2) {
 			if (ReferenceEquals(p1, p2)) return 0;
-			if (p1 == null) return -1;
-			if (p2 == null) return 1;
+			if (p1 is null) return -1;
+			if (p2 is null) return 1;
 
 			for (int i = 0; i < p1.Length; ++i) {
 				if (i >= p2.Length) return 1;

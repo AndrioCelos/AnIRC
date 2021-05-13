@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace AnIRC {
 	/// <summary>
@@ -45,14 +46,14 @@ namespace AnIRC {
 		/// Returns the <see cref="IrcUser"/> object representing the user with the specified nickname, creating one if necessary,
 		/// and updates its details with the specified ones.
 		/// </summary>
-		internal IrcUser Get(string nickname, string ident, string host, string account, string fullName, bool monitoring, bool add) {
+		internal IrcUser Get(string nickname, string ident, string host, string? account, string? fullName, bool monitoring, bool add) {
 			if (this.TryGetValue(nickname, out var user)) {
 				if (ident != "*") user.Ident = ident;
 				if (host != "*") user.Host = host;
 				if (account != null) user.Account = account == "*" ? null : account;
 				if (fullName != null) user.FullName = fullName;
 			} else {
-				user = new IrcUser(this.Client, nickname, ident, host, account == "*" ? null : account, fullName) { Monitoring = monitoring };
+				user = new IrcUser(this.Client, nickname, ident, host, account == "*" ? null : account, fullName ?? nickname) { Monitoring = monitoring };
 				if (add) {
 					this.Add(user);
 					this.Client.OnUserAppeared(new IrcUserEventArgs(user));
@@ -68,7 +69,7 @@ namespace AnIRC {
 		/// <summary>Attempts to get the user with the specified nickname and returns a value indicating whether they were found.</summary>
 		/// <param name="nickname">The nickname to search for.</param>
 		/// <param name="value">When this method returns, contains the <see cref="IrcUser"/> searched for, or null if no such user is in the list.</param>
-		public bool TryGetValue(string nickname, out IrcUser value) => this.Users.TryGetValue(nickname, out value);
+		public bool TryGetValue(string nickname, [MaybeNullWhen(false)] out IrcUser value) => this.Users.TryGetValue(nickname, out value);
 
 		/// <summary>Returns an enumerator that enumerates the <see cref="IrcUser"/>s in this list. The order is undefined.</summary>
 		public IEnumerator<IrcUser> GetEnumerator() => this.Users.Values.GetEnumerator();

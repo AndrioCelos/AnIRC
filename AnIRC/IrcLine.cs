@@ -8,9 +8,9 @@ namespace AnIRC {
 	/// </summary>
 	public class IrcLine {
 		/// <summary>A dictionary of IRCv3 tags in this message, or null if no tag list is present.</summary>
-		public Dictionary<string, string> Tags { get; }
+		public Dictionary<string, string?>? Tags { get; }
 		/// <summary>The prefix or sender of this message, or null if no prefix is present.</summary>
-		public string Prefix;
+		public string? Prefix;
 		/// <summary>The message or command.</summary>
 		public string Message;
 		/// <summary>The list of parameters in this message.</summary>
@@ -22,20 +22,20 @@ namespace AnIRC {
 			this.Message = message;
 			this.Parameters = parameters;
 		}
-		public IrcLine(Dictionary<string, string> tags, string prefix, string command, List<string> parameters, bool hasTrail) {
+		public IrcLine(Dictionary<string, string?>? tags, string? prefix, string command, string[] parameters, bool hasTrail) {
 			this.Tags = tags;
 			this.Prefix = prefix;
 			this.Message = command;
-			this.Parameters = parameters?.ToArray() ?? Array.Empty<string>();
+			this.Parameters = parameters;
 			this.HasTrail = hasTrail;
 		}
 
 		public static IrcLine Parse(string line) => IrcLine.Parse(line, true);
 		public static IrcLine Parse(string line, bool allowTags) {
 			if (line == null) throw new ArgumentNullException(nameof(line));
-			if (line.Length == 0) return new IrcLine(null, null, null, null, false);
+			if (line.Length == 0) return new IrcLine(null, null, "", Array.Empty<string>(), false);
 
-			Dictionary<string, string> tags = null; string prefix = null, command = null;
+			Dictionary<string, string?>? tags = null; string? prefix = null, command = null;
 			var parameters = new List<string>();
 			bool hasTrail = false;
 
@@ -44,9 +44,9 @@ namespace AnIRC {
 
 			if (allowTags && c == '@') {
 				// The line has IRCv3.2 tags.
-				tags = new Dictionary<string, string>();
+				tags = new Dictionary<string, string?>();
 				for (i = 1; i < line.Length; ++i) {
-					string tag; string value;
+					string tag; string? value;
 
 					builder.Clear();
 					for ( ; i < line.Length; ++i) {
@@ -138,7 +138,7 @@ namespace AnIRC {
 				}
 			}
 
-			return new IrcLine(tags, prefix, command, parameters, hasTrail);
+			return new IrcLine(tags, prefix, command ?? "", parameters?.ToArray() ?? Array.Empty<string>(), hasTrail);
 		}
 
 		/// <summary>Returns a new string from the specified string with certain characters escaped, for use as an IRCv3 tag value.</summary>

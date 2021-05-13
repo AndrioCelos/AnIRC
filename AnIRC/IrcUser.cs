@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -35,9 +36,9 @@ namespace AnIRC {
 			get => this.host;
 			protected internal set { this.host = value; this.OnPropertyChanged(new PropertyChangedEventArgs(nameof(this.Host))); }
 		}
-		private string account;
+		private string? account;
 		/// <summary>The user's account name.</summary>
-		public string Account {
+		public string? Account {
 			get => this.account;
 			protected internal set { this.account = value; this.OnPropertyChanged(new PropertyChangedEventArgs(nameof(this.Account))); }
 		}
@@ -59,15 +60,11 @@ namespace AnIRC {
 			get => this.monitoring;
 			set { this.monitoring = value; this.OnPropertyChanged(new PropertyChangedEventArgs(nameof(this.Monitoring))); }
 		}
-		private bool away;
 		/// <summary>True if the user is marked as away.</summary>
-		public bool Away {
-			get => this.away;
-			set { this.away = value; this.OnPropertyChanged(new PropertyChangedEventArgs(nameof(this.Away))); }
-		}
-		private string awayReason;
+		public bool Away => this.awayReason != null;
+		private string? awayReason;
 		/// <summary>The user's away message.</summary>
-		public string AwayReason {
+		public string? AwayReason {
 			get => this.awayReason;
 			set { this.awayReason = value; this.OnPropertyChanged(new PropertyChangedEventArgs(nameof(this.AwayReason))); }
 		}
@@ -92,7 +89,7 @@ namespace AnIRC {
 		/// <summary>A list of channels we share with this user</summary>
 		public IrcChannelCollection Channels { get; internal set; }
 
-		public event PropertyChangedEventHandler PropertyChanged;
+		public event PropertyChangedEventHandler? PropertyChanged;
 		internal void OnPropertyChanged(PropertyChangedEventArgs e) => this.PropertyChanged?.Invoke(this, e);
 
 		private readonly int id;
@@ -110,37 +107,22 @@ namespace AnIRC {
 		/// <param name="host">The user's displayed host.</param>
 		/// <param name="account">The user's account name, or null if it isn't known.</param>
 		/// <param name="fullName">The user's full name, or null if it isn't known.</param>
-		public IrcUser(IrcClient client, string nickname, string ident, string host, string account, string fullName) {
+		public IrcUser(IrcClient client, string nickname, string ident, string host, string? account, string fullName) : base(client, true) {
 			this.Client = client;
-			this.Nickname = nickname;
-			this.Ident = ident;
-			this.Host = host;
-			this.Account = account;
-			this.FullName = fullName;
-			this.Channels = new IrcChannelCollection(client);
-
-			this.id = Interlocked.Increment(ref nextId);
-		}
-		/// <summary>
-		/// Creates a new <see cref="IrcUser"/> with the specified identity data.
-		/// </summary>
-		/// <param name="client">The <see cref="IrcClient"/> that this user belongs to.</param>
-		/// <param name="hostmask">The user's displayed hostmask.</param>
-		/// <param name="fullName">The user's full name, or null if it isn't known.</param>
-		public IrcUser(IrcClient client, string hostmask, string fullName) {
-			this.Client = client;
-			this.SetMask(hostmask);
-			this.FullName = fullName;
+			this.nickname = nickname;
+			this.ident = ident;
+			this.host = host;
+			this.account = account;
+			this.fullName = fullName;
 			this.Channels = new IrcChannelCollection(client);
 
 			this.id = Interlocked.Increment(ref nextId);
 		}
 
-		/// <summary>Sets the <see cref="Nickname"/>, <see cref="Ident"/> and <see cref="Host"/> properties according to the specified hostmask.</summary>
-		protected internal void SetMask(string hostmask) {
-			this.Nickname = Hostmask.GetNickname(hostmask);
-			this.Ident = Hostmask.GetIdent(hostmask);
-			this.Host = Hostmask.GetHost(hostmask);
+		/// <summary>Returns a value indicating whether this user is away and the away message if applicable.</summary>
+		public bool IsAway([MaybeNullWhen(false)] out string message) {
+			message = this.awayReason;
+			return this.awayReason != null;
 		}
 
 		/// <summary>
@@ -153,7 +135,7 @@ namespace AnIRC {
 		/// Determines whether two <see cref="IrcUser"/> objects are equal.
 		/// </summary>
 		/// <returns>True if the two user objects have the same hostmask; false otherwise.</returns>
-		public static bool operator ==(IrcUser user1, IrcUser user2)
+		public static bool operator ==(IrcUser? user1, IrcUser? user2)
 			=> user1 is null ? user2 is null : user2 is not null && user1.Nickname == user2.Nickname && user1.Ident == user2.Ident && user1.Host == user2.Host;
 		/// <summary>
 		/// Determines whether two User objects are different.
@@ -161,7 +143,7 @@ namespace AnIRC {
 		/// <param name="user1">The first User object to compare.</param>
 		/// <param name="user2">The second User object to compare.</param>
 		/// <returns>True if the two user objects have different hostmasks; false otherwise.</returns>
-		public static bool operator !=(IrcUser user1, IrcUser user2)
+		public static bool operator !=(IrcUser? user1, IrcUser? user2)
 			=> user1 is null ? user2 is not null : user2 is null || user1.Nickname != user2.Nickname || user1.Ident != user2.Ident || user1.Host != user2.Host;
 
 		/// <summary>
@@ -176,7 +158,7 @@ namespace AnIRC {
 		/// </summary>
 		/// <param name="other">The object to compare.</param>
 		/// <returns>True obj is an <see cref="IrcUser"/> object that is equal to this one; false otherwise.</returns>
-		public override bool Equals(object other) => other is IrcUser user && this == user;
+		public override bool Equals(object? other) => other is IrcUser user && this == user;
 
 		/// <summary>Waits for the next private PRIVMSG from this user.</summary>
 		public Task<string> ReadAsync() => this.ReadAsync(this.Client.Me);
@@ -213,7 +195,7 @@ namespace AnIRC {
 		/// A <see cref="Task{TResult}"/> representing the status of the request.
 		/// The task will return the part of the response after the request token, or null if that part was not present.
 		/// </returns>
-		public Task<string> CtcpAsync(string request, string arg) {
+		public Task<string> CtcpAsync(string request, string? arg) {
 			var asyncRequest = new AsyncRequest.CtcpAsyncRequest(this.Client, this.Nickname, request);
 			this.Client.AddAsyncRequest(asyncRequest);
 			this.Ctcp(request, arg);
@@ -243,10 +225,10 @@ namespace AnIRC {
 		public Task<WhoisResponse> WhoisAsync(string server) => this.Client.WhoisAsync(server, this.Nickname);
 
 		/// <summary>Asynchronously looks up the services account name of the specified user.</summary>
-		public Task<string> GetAccountAsync() => this.GetAccountAsync(false);
+		public Task<string?> GetAccountAsync() => this.GetAccountAsync(false);
 		/// <summary>Asynchronously looks up the services account name of the specified user.</summary>
 		/// <param name="force">If true, a request will be sent even if an account name is already known.</param>
-		public async Task<string> GetAccountAsync(bool force) {
+		public async Task<string?> GetAccountAsync(bool force) {
 			if (this.Client.State < IrcClientState.ReceivingServerInfo) throw new InvalidOperationException("The client must be registered to perform this operation.");
 
 			if (!force && this.Account != null) return this.Account;
@@ -265,14 +247,14 @@ namespace AnIRC {
 	/// Represents the local user on IRC and provides identity information to log in.
 	/// </summary>
 	public class IrcLocalUser : IrcUser {
-		internal IrcClient client;
-		public override IrcClient Client => this.client;
+		internal IrcClient? client;
+		public override IrcClient Client => this.client ?? throw new InvalidOperationException($"This operation is not valid on an unbound {nameof(IrcLocalUser)}.");
 
 		/// <summary>Returns or sets the user's nickname.</summary>
 		public new string Nickname {
 			get => base.Nickname;
 			set {
-				if (this.Client?.State < IrcClientState.Registering)
+				if (this.Client.State < IrcClientState.Registering)
 					base.Nickname = value;
 				else
 					this.Client.Send("NICK " + value);
@@ -303,18 +285,19 @@ namespace AnIRC {
 		public Task SetNicknameAsync(string newNickname) {
 			if (newNickname == null) throw new ArgumentNullException(nameof(newNickname));
 
-			if (this.Client?.State < IrcClientState.Registering) {
+			if (this.Client.State < IrcClientState.Registering) {
 				base.Nickname = newNickname;
-				return Task.FromResult<object>(null);
+				return Task.FromResult<object?>(null);
 			}
 
-			var request = new AsyncRequest.VoidAsyncRequest(this.client, this.Nickname, "NICK", null, ERR_NONICKNAMEGIVEN, ERR_ERRONEUSNICKNAME, ERR_NICKNAMEINUSE, ERR_NICKCOLLISION, ERR_UNAVAILRESOURCE, ERR_RESTRICTED);
-			this.client.AddAsyncRequest(request);
-			this.client.Send("NICK " + newNickname);
+			var request = new AsyncRequest.VoidAsyncRequest(this.Client, this.Nickname, "NICK", null, ERR_NONICKNAMEGIVEN, ERR_ERRONEUSNICKNAME, ERR_NICKNAMEINUSE, ERR_NICKCOLLISION, ERR_UNAVAILRESOURCE, ERR_RESTRICTED);
+			this.Client.AddAsyncRequest(request);
+			this.Client.Send("NICK " + newNickname);
 			return request.Task;
 		}
 
 		/// <summary>Initializes a new <see cref="IrcLocalUser"/> with the specified identity data.</summary>
-		public IrcLocalUser(string nickname, string ident, string fullName) : base(null, nickname, ident, "*", null, fullName) { }
+		public IrcLocalUser(string nickname, string ident, string fullName) : base(null!, nickname, ident, "*", null, fullName) { }
+		// IrcLocalUser shouldn't be used until passed to an IrcClient constructor. This sets Client non-null.
 	}
 }

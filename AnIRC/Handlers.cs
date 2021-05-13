@@ -22,6 +22,7 @@ namespace AnIRC {
 		public IrcMessageHandlerAttribute(string reply) => this.Reply = reply;
 	}
 
+#pragma warning disable IDE0079  // Remove unnecessary suppression
 #pragma warning disable IDE0060  // Remove unused parameter
 	internal static class Handlers {
 		[IrcMessageHandler(Replies.RPL_WELCOME)]
@@ -84,7 +85,7 @@ namespace AnIRC {
 					}
 
 					if (key.StartsWith("-"))
-						client.Extensions[key[1..]] = null;
+						client.Extensions.Remove(key[1..]);
 					else
 						client.Extensions[key] = value;
 				}
@@ -93,6 +94,7 @@ namespace AnIRC {
 
 		[IrcMessageHandler(Replies.RPL_UMODEIS)]
 		public static void HandleUserMode(IrcClient client, IrcLine line) {  // 221
+			// TODO: Add support for non-standard parameterised user modes (e.g. +s on InspIRCd).
 			client.UserModes.Clear();
 
 			bool direction = true;
@@ -119,14 +121,14 @@ namespace AnIRC {
 
 		[IrcMessageHandler(Replies.RPL_UNAWAY)]
 		public static void HandleUnAway(IrcClient client, IrcLine line) {  // 305
-			client.Me.Away = false;
+			client.Me.AwayReason = null;
 			client.OnAwayCancelled(new AwayEventArgs(line.Parameters[1]));
 		}
 
 		[IrcMessageHandler(Replies.RPL_NOWAWAY)]
 		public static void HandleNowAway(IrcClient client, IrcLine line) {  // 306
 			if (!client.Me.Away) client.Me.AwaySince = DateTime.Now;
-			client.Me.Away = true;
+			client.Me.AwayReason = IrcClient.UNKNOWN_AWAY_MESSAGE;
 			client.OnAwaySet(new AwayEventArgs(line.Parameters[1]));
 		}
 
@@ -199,7 +201,7 @@ namespace AnIRC {
 
 		[IrcMessageHandler(Replies.RPL_CHANNELMODEIS)]
 		public static void HandleChannelModes(IrcClient client, IrcLine line) {  // 324
-			var user = client.Users.Get(line.Prefix, false);
+			var user = client.Users.Get(line.Prefix ?? client.ServerName!, false);
 			var channel = client.Channels.Get(line.Parameters[1]);
 			channel.Modes.Clear();
 			client.HandleChannelModes(user, channel, line.Parameters[2], line.Parameters.Skip(3), false);
@@ -269,7 +271,7 @@ namespace AnIRC {
 			var flags = line.Parameters[6];
 			var hops = int.Parse(fields[0]);
 			var fullName = fields[1];
-			IrcChannel channel = null; IrcChannelUser channelUser = null;
+			IrcChannel? channel = null; IrcChannelUser? channelUser = null;
 
 			if (client.IsChannel(channelName) && client.Channels.TryGetValue(channelName, out channel)) {
 				// We are in a common channel with this person.
@@ -281,14 +283,14 @@ namespace AnIRC {
 			if (!client.Users.TryGetValue(nickname, out var user)) {
 				if (channelUser != null) {
 					user = new IrcUser(client, nickname, ident, host, null, fullName);
-					user.Channels.Add(channel);
+					user.Channels.Add(channel!);
 				}
 			} else {
 				if (channel != null && !user.Channels.Contains(channelName))
 					user.Channels.Add(channel);
 			}
 
-			if (user != null) {
+			if (user is not null) {
 				user.Ident = ident;
 				user.Host = host;
 				user.FullName = fullName;
@@ -299,11 +301,10 @@ namespace AnIRC {
 				var oper = false;
 				foreach (char flag in flags) {
 					if (flag == 'H') {
-						user.Away = false;
+						user.AwayReason = null;
 					} else if (flag == 'G') {
 						if (!user.Away) {
-							user.Away = true;
-							user.AwayReason = null;
+							user.AwayReason = IrcClient.UNKNOWN_AWAY_MESSAGE;
 							user.AwaySince = DateTime.Now;
 						}
 					} else if (flag == '*')
@@ -321,13 +322,13 @@ namespace AnIRC {
 			if (line.Parameters[2] != "*") {
 				var knownChannel = client.Channels.TryGetValue(line.Parameters[2], out var channel);
 
-				if (!client.pendingNames.TryGetValue(line.Parameters[2], out var pendingNames)) {
-					// Make a set of the remembered users, so we can check for any not listed.
-					pendingNames = new HashSet<string>(channel.Users.Select(user => user.Nickname));
-					client.pendingNames[line.Parameters[2]] = pendingNames;
-				}
-
 				if (channel != null) {
+					if (!client.pendingNames.TryGetValue(line.Parameters[2], out var pendingNames)) {
+						// Make a set of the remembered users, so we can check for any not listed.
+						pendingNames = new HashSet<string>(channel.Users.Select(user => user.Nickname));
+						client.pendingNames[line.Parameters[2]] = pendingNames;
+					}
+
 					foreach (var name in line.Parameters[3].Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)) {
 						// Some servers include a space after the last name.
 						for (int i = 0; i < name.Length; ++i) {
@@ -388,46 +389,43 @@ namespace AnIRC {
 
 			var user = client.Users.Get(parameters[nicknameIndex], false);
 
-			IrcChannelUser channelUser;
+			IrcChannelUser? channelUser;
 			if (channelIndex >= 0 && client.Channels.TryGetValue(parameters[channelIndex], out var channel))
 				channel.Users.TryGetValue(parameters[nicknameIndex], out channelUser);
 			else
 				channelUser = null;
 
-			if (user != null) {
-				for (int i = parameters.Length - 1; i >= 0; --i) {
-					switch (e.Fields[i]) {
-						case WhoxField.Ident:
-							user.Ident = parameters[i];
-							break;
-						case WhoxField.Host:
-							user.Host = parameters[i];
-							break;
-						case WhoxField.Flags:
-							var oper = false;
-							foreach (char flag in parameters[i]) {
-								if (flag == 'H') {
-									user.Away = false;
-								} else if (flag == 'G') {
-									if (!user.Away) {
-										user.Away = true;
-										user.AwayReason = null;
-										user.AwaySince = DateTime.Now;
-									}
-								} else if (flag == '*')
-									oper = true;
-								else if (channelUser != null && client.Extensions.StatusPrefix.TryGetValue(flag, out char mode))
-									channelUser.Status.Add(mode);
-							}
-							if (user.Oper != oper) user.Oper = oper;
-							break;
-						case WhoxField.Account:
-							user.Account = parameters[i] == "0" ? null : parameters[i];
-							break;
-						case WhoxField.FullName:
-							user.FullName = parameters[i];
-							break;
-					}
+			for (int i = parameters.Length - 1; i >= 0; --i) {
+				switch (e.Fields[i]) {
+					case WhoxField.Ident:
+						user.Ident = parameters[i];
+						break;
+					case WhoxField.Host:
+						user.Host = parameters[i];
+						break;
+					case WhoxField.Flags:
+						var oper = false;
+						foreach (char flag in parameters[i]) {
+							if (flag == 'H') {
+								user.AwayReason = null;
+							} else if (flag == 'G') {
+								if (!user.Away) {
+									user.AwayReason = IrcClient.UNKNOWN_AWAY_MESSAGE;
+									user.AwaySince = DateTime.Now;
+								}
+							} else if (flag == '*')
+								oper = true;
+							else if (channelUser != null && client.Extensions.StatusPrefix.TryGetValue(flag, out char mode))
+								channelUser.Status.Add(mode);
+						}
+						if (user.Oper != oper) user.Oper = oper;
+						break;
+					case WhoxField.Account:
+						user.Account = parameters[i] == "0" ? null : parameters[i];
+						break;
+					case WhoxField.FullName:
+						user.FullName = parameters[i];
+						break;
 				}
 			}
 		}
@@ -490,7 +488,6 @@ namespace AnIRC {
 		public static void HandleWatchAway(IrcClient client, IrcLine line) {  // 598
 			if (client.Extensions.SupportsMonitor) {
 				if (client.Users.TryGetValue(line.Parameters[1], out var user)) {
-					user.Away = true;
 					user.AwayReason = line.Parameters[5];
 					user.AwaySince = IrcClient.DecodeUnixTime(double.Parse(line.Parameters[4]));
 				}
@@ -501,7 +498,7 @@ namespace AnIRC {
 		public static void HandleWatchBack(IrcClient client, IrcLine line) {  // 599
 			if (client.Extensions.SupportsMonitor) {
 				if (client.Users.TryGetValue(line.Parameters[1], out var user)) {
-					user.Away = false;
+					user.AwayReason = null;
 				}
 			}
 		}
@@ -540,10 +537,10 @@ namespace AnIRC {
 					user.Monitoring = false;
 					if (!user.IsSeen) {
 						client.Users.Remove(line.Parameters[1]);
-						client.OnUserQuit(new QuitEventArgs(user, null));
+						client.OnUserQuit(new QuitEventArgs(user, IrcClient.UNKNOWN_QUIT_MESSAGE));
 					}
 				} else
-					user = new IrcUser(client, line.Parameters[1], line.Parameters[2], line.Parameters[3], null, null);
+					user = new IrcUser(client, line.Parameters[1], line.Parameters[2], line.Parameters[3], null, line.Parameters[1]);
 				client.OnMonitorOffline(new IrcUserEventArgs(user));
 			}
 		}
@@ -572,7 +569,7 @@ namespace AnIRC {
 			if (client.Extensions.SupportsMonitor) {
 				// If any nicknames remain in this list, they are missing from the monitor list.
 				// Null `client.MonitorList` means that we just received an empty list.
-				foreach (var nickname in (IEnumerable<string>) client.pendingMonitor ?? client.MonitorList.ToArray()) {
+				foreach (var nickname in (IEnumerable<string>?) client.pendingMonitor ?? client.MonitorList.ToArray()) {
 					client.MonitorList.RemoveInternal(nickname);
 				}
 				client.pendingMonitor = null;
@@ -583,8 +580,7 @@ namespace AnIRC {
 		public static void HandleWatchIsAway(IrcClient client, IrcLine line) {  // 609
 			if (client.Extensions.SupportsMonitor) {
 				if (client.Users.TryGetValue(line.Parameters[1], out var user)) {
-					user.Away = true;
-					user.AwayReason = null;
+					user.AwayReason = IrcClient.UNKNOWN_AWAY_MESSAGE;
 					user.AwaySince = IrcClient.DecodeUnixTime(double.Parse(line.Parameters[4]));
 				}
 			}
@@ -615,10 +611,10 @@ namespace AnIRC {
 						user.Monitoring = false;
 						if (!user.IsSeen) {
 							client.Users.Remove(nickname);
-							client.OnUserQuit(new QuitEventArgs(user, null));
+							client.OnUserQuit(new QuitEventArgs(user, IrcClient.UNKNOWN_QUIT_MESSAGE));
 						}
 					} else
-						user = new IrcUser(client, nickname, "*", "*", null, null);
+						user = new IrcUser(client, nickname, "*", "*", null, nickname);
 					client.OnMonitorOffline(new IrcUserEventArgs(user));
 				}
 			}
@@ -648,7 +644,7 @@ namespace AnIRC {
 			if (client.Extensions.SupportsMonitor) {
 				// If any nicknames remain in this list, they are missing from the monitor list.
 				// Null `client.MonitorList` means that we just received an empty list.
-				foreach (var nickname in (IEnumerable<string>) client.pendingMonitor ?? client.MonitorList.ToArray()) {
+				foreach (var nickname in (IEnumerable<string>?) client.pendingMonitor ?? client.MonitorList.ToArray()) {
 					client.MonitorList.RemoveInternal(nickname);
 				}
 				client.pendingMonitor = null;
@@ -682,14 +678,14 @@ namespace AnIRC {
 		public static void HandleSaslFailure(IrcClient client, IrcLine line) {  // 902, 904, 905
 			if (client.RequireSaslAuthentication) {
 				client.disconnectReason = DisconnectReason.SaslAuthenticationFailed;
-				client.Send("QUIT :We require SASL authentication, but authentication failed.");
+				client.Send($"QUIT :{IrcClient.QUIT_MESSAGE_SASL_AUTHENTICATION_FAILED}");
 			} else
 				client.Send("CAP END");
 		}
 
 		[IrcMessageHandler("ACCOUNT")]
 		public static void HandleAccount(IrcClient client, IrcLine line) {
-			var user = client.Users.Get(line.Prefix, false);
+			var user = client.Users.Get(line.Prefix ?? client.ServerName!, false);
 			user.Account = line.Parameters[0] == "*" ? null : line.Parameters[0];
 		}
 
@@ -832,7 +828,7 @@ namespace AnIRC {
 
 		[IrcMessageHandler("CHGHOST")]
 		public static void HandleChgHost(IrcClient client, IrcLine line) {
-			string nickname = Hostmask.GetNickname(line.Prefix);
+			string nickname = Hostmask.GetNickname(line.Prefix ?? client.ServerName!);
 			if (client.Users.TryGetValue(nickname, out var user)) {
 				user.Ident = line.Parameters[0];
 				user.Host = line.Parameters[1];
@@ -843,18 +839,18 @@ namespace AnIRC {
 		public static void HandleError(IrcClient client, IrcLine line) => client.OnServerError(new ServerErrorEventArgs(line.Parameters[0]));
 
 		[IrcMessageHandler("INVITE")]
-		public static void HandleInvite(IrcClient client, IrcLine line) => client.OnInvite(new InviteEventArgs(client.Users.Get(line.Prefix, false), line.Parameters[0], line.Parameters[1]));
+		public static void HandleInvite(IrcClient client, IrcLine line) => client.OnInvite(new InviteEventArgs(client.Users.Get(line.Prefix ?? client.ServerName!, false), line.Parameters[0], line.Parameters[1]));
 
 		[IrcMessageHandler("JOIN")]
 		public static void HandleJoin(IrcClient client, IrcLine line) {
-			IrcUser user;  Task namesTask;
+			IrcUser user; Task? namesTask;
 			bool onChannel = client.Channels.TryGetValue(line.Parameters[0], out var channel);
 
 			if (line.Parameters.Length == 3) {
 				// Extended join
-				user = client.Users.GetFromExtendedJoin(line.Prefix, line.Parameters[1], line.Parameters[2], onChannel);
+				user = client.Users.GetFromExtendedJoin(line.Prefix ?? client.ServerName!, line.Parameters[1], line.Parameters[2], onChannel);
 			} else
-				user = client.Users.Get(line.Prefix, onChannel);
+				user = client.Users.Get(line.Prefix ?? client.ServerName!, onChannel);
 
 			if (!onChannel && user.IsMe) {
 				if (client.Users.Count == 0) client.Users.Add(client.Me);
@@ -867,8 +863,8 @@ namespace AnIRC {
 				client.AddAsyncRequest(asyncRequest);
 				namesTask = asyncRequest.Task;
 			} else {
+				channel ??= new IrcChannel(client, line.Parameters[0]);
 				if (!user.Channels.Contains(line.Parameters[0])) {
-					if (channel == null) channel = new IrcChannel(client, line.Parameters[0]);
 					channel.Users.Add(new IrcChannelUser(client, channel, user.Nickname) { JoinTime = DateTime.Now });
 					user.Channels.Add(channel);
 				}
@@ -879,14 +875,14 @@ namespace AnIRC {
 
 		[IrcMessageHandler("KICK")]
 		public static void HandleKick(IrcClient client, IrcLine line) {
-			var user = client.Users.Get(line.Prefix, false);
+			var user = client.Users.Get(line.Prefix ?? client.ServerName!, false);
 			var channel = client.Channels.Get(line.Parameters[0]);
 			if (!channel.Users.TryGetValue(line.Parameters[1], out var target)) target = new IrcChannelUser(client, channel, line.Parameters[1]);
 
 			var targetUser = target.User;
-			var disappearedUsers = targetUser != null ? client.RemoveUserFromChannel(channel, targetUser) : null;
+			var disappearedUsers = targetUser is not null ? client.RemoveUserFromChannel(channel, targetUser) : null;
 
-			client.OnChannelKick(new ChannelKickEventArgs(user, channel, target, line.Parameters.Length >= 3 ? line.Parameters[2] : null));
+			client.OnChannelKick(new ChannelKickEventArgs(user, channel, target, line.Parameters.Length >= 3 ? line.Parameters[2] : ""));
 			client.OnChannelLeave(new ChannelPartEventArgs(user, channel, "Kicked out by " + user.Nickname + ": " + (line.Parameters.Length >= 3 ? line.Parameters[2] : null)));
 
 			if (disappearedUsers != null) {
@@ -899,7 +895,7 @@ namespace AnIRC {
 
 		[IrcMessageHandler("KILL")]
 		public static void HandleKill(IrcClient client, IrcLine line) {
-			var user = client.Users.Get(line.Prefix, false);
+			var user = client.Users.Get(line.Prefix ?? client.ServerName!, false);
 			if (client.CaseMappingComparer.Equals(line.Parameters[0], client.Me.Nickname)) {
 				client.OnKilled(new PrivateMessageEventArgs(user, client.Me.Nickname, line.Parameters[1]));
 			}
@@ -907,7 +903,7 @@ namespace AnIRC {
 
 		[IrcMessageHandler("MODE")]
 		public static void HandleMode(IrcClient client, IrcLine line) {
-			var user = client.Users.Get(line.Prefix, false);
+			var user = client.Users.Get(line.Prefix ?? client.ServerName!, false);
 			if (client.IsChannel(line.Parameters[0])) {
 				var channel = client.Channels.Get(line.Parameters[0]);
 				client.HandleChannelModes(user, channel, line.Parameters[1], line.Parameters.Skip(2), true);
@@ -927,7 +923,7 @@ namespace AnIRC {
 
 		[IrcMessageHandler("NICK")]
 		public static void HandleNick(IrcClient client, IrcLine line) {
-			var user = client.Users.Get(line.Prefix, false);
+			var user = client.Users.Get(line.Prefix ?? client.ServerName!, false);
 			var oldNickname = user.Nickname;
 
 			client.OnNicknameChange(new NicknameChangeEventArgs(user, line.Parameters[0]));
@@ -949,18 +945,18 @@ namespace AnIRC {
 		[IrcMessageHandler("NOTICE")]
 		public static void HandleNotice(IrcClient client, IrcLine line) {
 			if (client.IsChannel(line.Parameters[0])) {
-				client.OnChannelNotice(new ChannelMessageEventArgs(client.Users.Get(line.Prefix ?? client.Address, false), client.Channels.Get(line.Parameters[0]), line.Parameters[1]));
+				client.OnChannelNotice(new ChannelMessageEventArgs(client.Users.Get(line.Prefix ?? client.ServerName!, false), client.Channels.Get(line.Parameters[0]), line.Parameters[1]));
 			} else if (line.Prefix == null || line.Prefix.Split(new char[] { '!' }, 2)[0].Contains(".")) {
 				// TODO: perhaps handle server notices better.
-				client.OnServerNotice(new PrivateMessageEventArgs(client.Users.Get(line.Prefix ?? client.Address, false), line.Parameters[0], line.Parameters[1]));
+				client.OnServerNotice(new PrivateMessageEventArgs(client.Users.Get(line.Prefix ?? client.ServerName!, false), line.Parameters[0], line.Parameters[1]));
 			} else {
-				client.OnPrivateNotice(new PrivateMessageEventArgs(client.Users.Get(line.Prefix ?? client.Address, false), line.Parameters[0], line.Parameters[1]));
+				client.OnPrivateNotice(new PrivateMessageEventArgs(client.Users.Get(line.Prefix ?? client.ServerName!, false), line.Parameters[0], line.Parameters[1]));
 			}
 		}
 
 		[IrcMessageHandler("PART")]
 		public static void HandlePart(IrcClient client, IrcLine line) {
-			var user = client.Users.Get(line.Prefix, false);
+			var user = client.Users.Get(line.Prefix ?? client.ServerName!, false);
 			var channel = client.Channels.Get(line.Parameters[0]);
 			var disappearedUsers = client.RemoveUserFromChannel(channel, user);
 
@@ -977,16 +973,16 @@ namespace AnIRC {
 
 		[IrcMessageHandler("PING")]
 		public static void HandlePing(IrcClient client, IrcLine line) {
-			client.OnPingReceived(new PingEventArgs(line.Parameters.Length == 0 ? null : line.Parameters[0]));
+			client.OnPingReceived(new PingEventArgs(line.Parameters.Length == 0 ? "" : line.Parameters[0]));
 			client.Send(line.Parameters.Length == 0 ? "PONG" : "PONG :" + line.Parameters[0]);
 		}
 
 		[IrcMessageHandler("PONG")]
-		public static void HandlePong(IrcClient client, IrcLine line) => client.OnPong(new PingEventArgs(line.Prefix));
+		public static void HandlePong(IrcClient client, IrcLine line) => client.OnPong(new PingEventArgs(line.Prefix ?? client.ServerName!));
 
 		[IrcMessageHandler("PRIVMSG")]
 		public static void HandlePrivmsg(IrcClient client, IrcLine line) {
-			var user = client.Users.Get(line.Prefix, false);
+			var user = client.Users.Get(line.Prefix ?? client.ServerName!, false);
 
 			if (client.IsChannel(line.Parameters[0])) {
 				// It's a channel message.
@@ -1019,13 +1015,13 @@ namespace AnIRC {
 
 		[IrcMessageHandler("QUIT")]
 		public static void HandleQuit(IrcClient client, IrcLine line) {
-			var user = client.Users.Get(line.Prefix, false);
+			var user = client.Users.Get(line.Prefix ?? client.ServerName!, false);
 			client.Users.Remove(user);
 			foreach (var channel in user.Channels)
 				channel.Users.Remove(user.Nickname);
 
 			var message = line.Parameters.Length >= 1 ? line.Parameters[0] : null;
-			client.OnUserQuit(new QuitEventArgs(user, message));
+			client.OnUserQuit(new QuitEventArgs(user, message ?? IrcClient.UNKNOWN_QUIT_MESSAGE));
 			foreach (var channel in user.Channels)
 				client.OnChannelLeave(new ChannelPartEventArgs(user, channel, (message != null && message.StartsWith("Quit:") ? "Quit: " : "Disconnected: ") + message));
 
@@ -1034,7 +1030,7 @@ namespace AnIRC {
 
 		[IrcMessageHandler("TOPIC")]
 		public static void HandleTopic(IrcClient client, IrcLine line) {
-			var user = client.Users.Get(line.Prefix, false);
+			var user = client.Users.Get(line.Prefix ?? client.ServerName!, false);
 			var channel = client.Channels.Get(line.Parameters[0]);
 
 			var oldTopic = channel.Topic;

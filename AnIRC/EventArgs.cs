@@ -84,13 +84,13 @@ namespace AnIRC {
 		/// Returns an <see cref="IrcChannel"/> object representing the channel that is affected.
 		public IrcChannel Channel { get; set; }
 		/// <summary>If the local user joined a channel, returns a <see cref="Task"/> that will complete when the NAMES list is received.</summary>
-		public Task NamesTask { get; }
+		public Task? NamesTask { get; }
 
 		public ChannelJoinEventArgs(IrcUser sender, IrcChannel channel) {
 			this.Sender = sender;
 			this.Channel = channel;
 		}
-		public ChannelJoinEventArgs(IrcUser sender, IrcChannel channel, Task namesTask) {
+		public ChannelJoinEventArgs(IrcUser sender, IrcChannel channel, Task? namesTask) {
 			this.Sender = sender;
 			this.Channel = channel;
 			this.NamesTask = namesTask;
@@ -118,9 +118,9 @@ namespace AnIRC {
 		/// <summary>Returns an <see cref="IrcChannel"/> object representing the channel that is affected.</summary>
 		public IrcChannel Channel { get; set; }
 		/// <summary>Returns the new channel key, or null if a key was removed.</summary>
-		public string Key { get; set; }
+		public string? Key { get; set; }
 
-		public ChannelKeyEventArgs(IrcUser sender, IrcChannel channel, string key) {
+		public ChannelKeyEventArgs(IrcUser sender, IrcChannel channel, string? key) {
 			this.Sender = sender;
 			this.Channel = channel;
 			this.Key = key;
@@ -232,9 +232,9 @@ namespace AnIRC {
 		/// <summary>Returns the mode character of the mode that was changed.</summary>
 		public char Mode { get; set; }
 		/// <summary>Returns the parameter to the mode change, or null if there was no parameter.</summary>
-		public string Parameter { get; set; }
+		public string? Parameter { get; set; }
 
-		public ChannelModeChangedEventArgs(IrcUser sender, IrcChannel channel, bool direction, char mode, string parameter) {
+		public ChannelModeChangedEventArgs(IrcUser sender, IrcChannel channel, bool direction, char mode, string? parameter) {
 			this.Sender = sender;
 			this.Channel = channel;
 			this.Direction = direction;
@@ -318,9 +318,9 @@ namespace AnIRC {
 		/// <summary>Returns an <see cref="IrcChannel"/> object representing the channel that was affected.</summary>
 		public IrcChannel Channel { get; set; }
 		/// <summary>Returns the part message, or null if there was no part message.</summary>
-		public string Message { get; set; }
+		public string? Message { get; set; }
 
-		public ChannelPartEventArgs(IrcUser sender, IrcChannel channel, string message) {
+		public ChannelPartEventArgs(IrcUser sender, IrcChannel channel, string? message) {
 			this.Sender = sender;
 			this.Channel = channel;
 			this.Message = message;
@@ -378,13 +378,13 @@ namespace AnIRC {
 		/// <summary>Returns an <see cref="IrcChannel"/> object representing the channel that is affected.</summary>
 		public IrcChannel Channel { get; set; }
 		/// <summary>Returns the old channel topic.</summary>
-		public string OldTopic { get; set; }
+		public string? OldTopic { get; set; }
 		/// <summary>Returns the nickname or hostmask of the entity who set the old channel topic.</summary>
-		public string OldTopicSetter { get; set; }
+		public string? OldTopicSetter { get; set; }
 		/// <summary>Returns the time when the old topic was set.</summary>
 		public DateTime OldTopicStamp { get; set; }
 
-		public ChannelTopicChangeEventArgs(IrcUser sender, IrcChannel channel, string oldTopic, string oldTopicSetter, DateTime oldTopicStamp) {
+		public ChannelTopicChangeEventArgs(IrcUser sender, IrcChannel channel, string? oldTopic, string? oldTopicSetter, DateTime oldTopicStamp) {
 			this.Sender = sender;
 			this.Channel = channel;
 			this.OldTopic = oldTopic;
@@ -412,9 +412,9 @@ namespace AnIRC {
 		/// <summary>Returns a <see cref="DisconnectReason"/> value specifying the cause of the disconnection.</summary>
 		public DisconnectReason Reason { get; }
 		/// <summary>If the disconnection caused an exception to be thrown, returns the exception.</summary>
-		public Exception Exception { get; }
+		public Exception? Exception { get; }
 
-		public DisconnectEventArgs(DisconnectReason reason, Exception exception) {
+		public DisconnectEventArgs(DisconnectReason reason, Exception? exception) {
 			this.Reason = reason;
 			this.Exception = exception;
 		}
@@ -595,17 +595,17 @@ namespace AnIRC {
 
 	public class ValidateCertificateEventArgs : EventArgs {
 		/// <summary>Returns the certificate presented by the server.</summary>
-		public X509Certificate Certificate { get; }
+		public X509Certificate? Certificate { get; }
 		/// <summary>Returns the chain of certificate authorities associated with the server's certificate.</summary>
-		public X509Chain Chain { get; }
+		public X509Chain? Chain { get; }
 		/// <summary>Returns a value indicating why the certificate is invalid.</summary>
 		public SslPolicyErrors SslPolicyErrors { get; }
 		/// <summary>Returns or sets a value specifying whether the connection will continue.</summary>
 		public bool Valid { get; set; }
 
-		public ValidateCertificateEventArgs(X509Certificate certificate, X509Chain chain, SslPolicyErrors errors)
+		public ValidateCertificateEventArgs(X509Certificate? certificate, X509Chain? chain, SslPolicyErrors errors)
 			: this(certificate, chain, errors, false) { }
-		public ValidateCertificateEventArgs(X509Certificate certificate, X509Chain chain, SslPolicyErrors errors, bool valid) {
+		public ValidateCertificateEventArgs(X509Certificate? certificate, X509Chain? chain, SslPolicyErrors errors, bool valid) {
 			this.Certificate = certificate;
 			this.Chain = chain;
 			this.SslPolicyErrors = errors;

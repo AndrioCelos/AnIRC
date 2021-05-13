@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 namespace AnIRC {
@@ -46,7 +47,7 @@ namespace AnIRC {
 		/// <summary>Attempts to get the user with the specified nickname and returns a value indicating whether they were found.</summary>
 		/// <param name="nickname">The nickname to search for.</param>
 		/// <param name="value">When this method returns, contains the <see cref="IrcChannelUser"/> searched for, or null if no such user is in the list.</param>
-		public bool TryGetValue(string nickname, out IrcChannelUser value) => this.Users.TryGetValue(nickname, out value);
+		public bool TryGetValue(string nickname, [MaybeNullWhen(false)] out IrcChannelUser value) => this.Users.TryGetValue(nickname, out value);
 
 		/// <summary>Returns an enumerator that enumerates the <see cref="IrcChannelUser"/>s in this list. The order is undefined.</summary>
 		public IEnumerator<IrcChannelUser> GetEnumerator() => this.Users.Values.GetEnumerator();
