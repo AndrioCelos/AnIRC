@@ -41,7 +41,7 @@ namespace AnIRC {
 
 			if (!continuing) {
 				client.disconnectReason = DisconnectReason.SaslAuthenticationFailed;
-				client.Send("QUIT :We require SASL authentication, but SASL is not supported.");
+				client.Send($"QUIT :{IrcClient.QUIT_MESSAGE_SASL_AUTHENTICATION_NOT_SUPPORTED}");
 			}
 		}
 
@@ -764,7 +764,7 @@ namespace AnIRC {
 
 						if (client.RequireSaslAuthentication && !enableCapabilities.Contains("sasl")) {
 							client.disconnectReason = DisconnectReason.SaslAuthenticationFailed;
-							client.Send("QUIT :We require SASL authentication, but SASL is not supported or was deselected.");
+							client.Send($"QUIT :{IrcClient.QUIT_MESSAGE_SASL_AUTHENTICATION_NOT_ENABLED}");
 						} else if (enableCapabilities.Count > 0) {
 							client.Send("CAP REQ :" + string.Join(" ", enableCapabilities));
 						}
