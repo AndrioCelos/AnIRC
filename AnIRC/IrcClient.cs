@@ -498,6 +498,7 @@ namespace AnIRC {
 			if (localUser is null) throw new ArgumentNullException(nameof(localUser));
 			if (localUser.client != null && localUser.client != this) throw new ArgumentException($"The {nameof(IrcLocalUser)} object is already bound to another {nameof(IrcClient)}.", nameof(localUser));
 
+			this.pingTimer.Elapsed += this.PingTimer_Elapsed;
 			this.asyncRequestTimer.Elapsed += this.AsyncRequestTimer_Elapsed;
 
 			this.Extensions = new IrcExtensions(this, networkName);
@@ -554,7 +555,7 @@ namespace AnIRC {
 		/// <summary>Returns or sets the quit message that will be sent in the event of a ping timeout.</summary>
 		public string PingTimeoutMessage { get; set; } = "Ping timeout";
 
-		private void PingTimeout_Elapsed(object sender, ElapsedEventArgs e) {
+		private void PingTimer_Elapsed(object sender, ElapsedEventArgs e) {
 			lock (this.pingTimer) {
 				if (this.pinged) {
 					this.disconnectReason = DisconnectReason.PingTimeout;
@@ -766,6 +767,7 @@ namespace AnIRC {
 		/// <summary>Handles or simulates a message received from the IRC server.</summary>
 		/// <param name="data">The message received or to simulate.</param>
 		public virtual void ReceivedLine(string data) {
+			this.pinged = false;
 			lock (this.receiveLock) {
 				var line = IrcLine.Parse(data);
 
