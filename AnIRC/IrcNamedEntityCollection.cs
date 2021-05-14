@@ -9,7 +9,7 @@ namespace AnIRC {
 		/// <summary>Returns the <see cref="IrcClient"/> that this collection belongs to.</summary>
 		protected IrcClient Client { get; }
 		/// <summary>Returns the underlying dictionary of this <see cref="IrcNamedEntityCollection{T}"/>.</summary>
-		protected Dictionary<string, T> Dictionary { get; }
+		protected Dictionary<string, T> Dictionary { get; private set; }
 
 		/// <summary>Initializes a new <see cref="IrcNamedEntityCollection{T}"/> belonging to the specified <see cref="IrcClient"/>.</summary>
 		protected internal IrcNamedEntityCollection(IrcClient client) {
@@ -28,6 +28,17 @@ namespace AnIRC {
 		protected internal bool Remove(string name) => this.Dictionary.Remove(name);
 		protected internal bool Remove(T entity) => this.Dictionary.Remove(entity.Name);
 		protected internal void Clear() => this.Dictionary.Clear();
+
+		/// <summary>Recomputes the hash codes in the collection based on the new <see cref="IrcStringComparer"/> used by the <see cref="IrcClient"/> associated with the collection.</summary>
+		/// <exception cref="InvalidOperationException">The new comparer causes multiple existing names to compare as equal.</exception>
+		protected internal void UpdateCaseMapping() {
+			if (this.Dictionary.Comparer == this.Client.CaseMappingComparer) return;
+			try {
+				this.Dictionary = new Dictionary<string, T>(this.Dictionary, this.Client.CaseMappingComparer);
+			} catch (ArgumentException ex) {
+				throw new InvalidOperationException(ex.Message);
+			}
+		}
 
 		/// <summary>Determines whether a <see cref="T"/> with the specified name is in this list.</summary>
 		public bool Contains(string name) => this.Dictionary.ContainsKey(name);

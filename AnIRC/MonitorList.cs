@@ -21,11 +21,7 @@ namespace AnIRC {
 			this.nicknames = new HashSet<string>(client.CaseMappingComparer);
 		}
 
-		internal void SetCaseMapping() {
-			var oldNicknames = this.nicknames;
-			this.nicknames = new HashSet<string>(this.Client.CaseMappingComparer);
-			foreach (var nickname in oldNicknames) this.nicknames.Add(nickname);
-		}
+		internal void UpdateCaseMapping() => this.nicknames = new HashSet<string>(this.nicknames, this.Client.CaseMappingComparer);
 
 		public IEnumerator<string> GetEnumerator() => this.nicknames.GetEnumerator();
 		IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();

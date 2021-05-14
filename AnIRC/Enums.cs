@@ -38,7 +38,9 @@
 		/// <summary>The TLS authentication failed.</summary>
 		SslAuthenticationFailed,
 		/// <summary>The SASL authentication failed.</summary>
-		SaslAuthenticationFailed
+		SaslAuthenticationFailed,
+		/// <summary>There was a desynchronisation due to a server configuration change.</summary>
+		CaseMappingCollision
 	}
 
 	/// <summary>

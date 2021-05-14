@@ -38,6 +38,7 @@ namespace AnIRC {
 		internal const string QUIT_MESSAGE_SASL_AUTHENTICATION_MECHANISM_NOT_SUPPORTED = "SASL authentication is required but no shared mechanisms are available.";
 		internal const string QUIT_MESSAGE_SASL_AUTHENTICATION_NOT_ENABLED = "SASL authentication is required but was not enabled.";
 		internal const string QUIT_MESSAGE_SASL_AUTHENTICATION_FAILED = "SASL authentication is required but failed.";
+		internal const string QUIT_MESSAGE_CASEMAPPING_COLLISION = "Name collision due to CASEMAPPING change.";
 
 		#region Events
 		// TODO: Remove/reorganise/merge some of these?
@@ -1053,23 +1054,24 @@ namespace AnIRC {
 			};
 
 			// We need to rebuild the hash tables after setting this.
-			var oldUsers = this.Users; IrcChannelCollection oldChannels;
-			this.Users = new IrcUserCollection(this);
-			foreach (var user in oldUsers) {
-				this.Users.Add(user);
-
-				oldChannels = user.Channels;
-				user.Channels = new IrcChannelCollection(this);
-				foreach (var channel in oldChannels) user.Channels.Add(channel);
+			try {
+				foreach (var channel in this.Channels) {
+					channel.Users.UpdateCaseMapping();
+				}
+				this.Channels.UpdateCaseMapping();
+				foreach (var user in this.Users) {
+					user.Channels.UpdateCaseMapping();
+				}
+				this.Users.UpdateCaseMapping();
+				this.MonitorList.UpdateCaseMapping();
+			} catch (InvalidOperationException) {
+				// This exception occurs when the CASEMAPPING change causes a key collision in existing hash table entries.
+				// Servers should resolve this before sending RPL_ISUPPORT; otherwise we cannot be sure how the server is resolving the situation.
+				// We'll be safe and treat this as a fatal connection error.
+				this.disconnectReason = DisconnectReason.CaseMappingCollision;
+				this.Send($"QUIT :{QUIT_MESSAGE_CASEMAPPING_COLLISION}");
+				this.Disconnect();
 			}
-
-			foreach (var channel in this.Me.Channels) {
-				var oldChannelUsers = channel.Users;
-				channel.Users = new IrcChannelUserCollection(this);
-				foreach (var user in oldChannelUsers) channel.Users.Add(user);
-			}
-
-			this.MonitorList.SetCaseMapping();
 		}
 
 		/// <summary>Searches the users on a channel for those matching a specified hostmask.</summary>
