@@ -986,7 +986,7 @@ namespace AnIRC {
 
 			if (client.IsChannel(line.Parameters[0])) {
 				// It's a channel message.
-				if (line.Parameters[1].Length > 1 && line.Parameters[1].StartsWith("\u0001") && line.Parameters[1].EndsWith("\u0001")) {
+				if (line.Parameters[1].Length > 1 && line.Parameters[1].StartsWith('\u0001') && line.Parameters[1].EndsWith('\u0001')) {
 					string ctcpMessage = line.Parameters[1].Trim(new char[] { '\u0001' });
 					string[] fields = ctcpMessage.Split(new char[] { ' ' }, 2);
 					if (fields[0].Equals("ACTION", StringComparison.OrdinalIgnoreCase)) {
@@ -999,7 +999,7 @@ namespace AnIRC {
 				}
 			} else {
 				// It's a private message.
-				if (line.Parameters[1].Length > 1 && line.Parameters[1].StartsWith("\u0001") && line.Parameters[1].EndsWith("\u0001")) {
+				if (line.Parameters[1].Length > 1 && line.Parameters[1].StartsWith('\u0001') && line.Parameters[1].EndsWith('\u0001')) {
 					string CTCPMessage = line.Parameters[1].Trim(new char[] { '\u0001' });
 					string[] fields = CTCPMessage.Split(new char[] { ' ' }, 2);
 					if (fields[0].Equals("ACTION", StringComparison.OrdinalIgnoreCase)) {
