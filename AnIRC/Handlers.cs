@@ -47,26 +47,30 @@ namespace AnIRC {
 
 		[IrcMessageHandler(Replies.RPL_MYINFO)]
 		public static void HandleMyInfo(IrcClient client, IrcLine line) {  // 004
-			client.ServerName = line.Parameters[1];
+			if (line.Parameters.Length > 1) client.ServerName = line.Parameters[1];  // Some servers (including Twitch) don't send this.
 
 			// Get supported modes.
-			client.SupportedUserModes.Clear();
-			foreach (char c in line.Parameters[3])
-				client.SupportedUserModes.Add(c);
+			if (line.Parameters.Length > 3) {
+				client.SupportedUserModes.Clear();
+				foreach (char c in line.Parameters[3])
+					client.SupportedUserModes.Add(c);
+			}
 
 			// We can only assume that channel modes not defined in RFC 2811 are type D at this point.
-			List<char> modesA = new(), modesB = new(), modesC = new(), modesD = new(), modesS = new();
-			foreach (char c in line.Parameters[4]) {
-				switch (ChannelModes.RFC2811.ModeType(c)) {
-					case 'A': modesA.Add(c); break;
-					case 'B': modesB.Add(c); break;
-					case 'C': modesC.Add(c); break;
-					case 'D': modesD.Add(c); break;
-					case 'S': modesS.Add(c); break;
-					default: modesD.Add(c); break;
+			if (line.Parameters.Length > 4) {
+				List<char> modesA = new(), modesB = new(), modesC = new(), modesD = new(), modesS = new();
+				foreach (char c in line.Parameters[4]) {
+					switch (ChannelModes.RFC2811.ModeType(c)) {
+						case 'A': modesA.Add(c); break;
+						case 'B': modesB.Add(c); break;
+						case 'C': modesC.Add(c); break;
+						case 'D': modesD.Add(c); break;
+						case 'S': modesS.Add(c); break;
+						default: modesD.Add(c); break;
+					}
 				}
+				client.Extensions.ChanModes = new ChannelModes(modesA, modesB, modesC, modesD, modesS);
 			}
-			client.Extensions.ChanModes = new ChannelModes(modesA, modesB, modesC, modesD, modesS);
 		}
 
 		[IrcMessageHandler(Replies.RPL_ISUPPORT)]
@@ -978,7 +982,10 @@ namespace AnIRC {
 		}
 
 		[IrcMessageHandler("PONG")]
-		public static void HandlePong(IrcClient client, IrcLine line) => client.OnPong(new PingEventArgs(line.Prefix ?? client.ServerName!));
+		public static void HandlePong(IrcClient client, IrcLine line) {
+			client.pinged = false;
+			client.OnPong(new PingEventArgs(line.Prefix ?? client.ServerName!));
+		}
 
 		[IrcMessageHandler("PRIVMSG")]
 		public static void HandlePrivmsg(IrcClient client, IrcLine line) {

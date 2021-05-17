@@ -437,6 +437,8 @@ namespace AnIRC {
 		/// <summary>Returns true if additional messages has been received that are not yet being processed.</summary>
 		public bool DataAvailable => this.tcpClient?.GetStream()?.DataAvailable ?? false;
 
+		public IrcLine? CurrentLine { get; private set; }
+
 		/// <summary>Contains SHA-256 hashes of TLS certificates that should be accepted.</summary>
 		public List<string> TrustedCertificates { get; private set; } = new List<string>();
 		/// <summary>Returns or sets a value indicating whether the connection will continue by default if the server's TLS certificate is invalid.</summary>
@@ -463,7 +465,7 @@ namespace AnIRC {
 		private StreamWriter? writer;
 		private Thread? readThread;
 		private int pingTimeout = 60;
-		private bool pinged;
+		internal bool pinged;
 		private readonly Timer pingTimer = new(60000);
 		private readonly object receiveLock = new();
 		private readonly object Lock = new();
@@ -565,8 +567,8 @@ namespace AnIRC {
 					this.OnDisconnected(new DisconnectEventArgs(DisconnectReason.PingTimeout, null));
 					this.State = IrcClientState.Disconnected;
 				} else {
-					this.Send("PING :Keep-alive");
 					this.pinged = true;
+					this.Send("PING :Keep-alive");
 				}
 			}
 		}
@@ -767,9 +769,9 @@ namespace AnIRC {
 		/// <summary>Handles or simulates a message received from the IRC server.</summary>
 		/// <param name="data">The message received or to simulate.</param>
 		public virtual void ReceivedLine(string data) {
-			this.pinged = false;
 			lock (this.receiveLock) {
 				var line = IrcLine.Parse(data);
+				this.CurrentLine = line;
 
 				int i; bool found = false;
 				lock (this.asyncRequests) {
@@ -808,6 +810,8 @@ namespace AnIRC {
 						}
 					}
 				}
+
+				this.CurrentLine = null;
 			}
 		}
 
@@ -849,7 +853,7 @@ namespace AnIRC {
 		/// <param name="format">The format of the message, as per <see cref="string.Format(string, object[])"/>.</param>
 		/// <param name="parameters">The parameters to include in the message.</param>
 		/// <exception cref="InvalidOperationException">The client is not connected to a server.</exception>
-		public virtual void Send(string format, params object[] parameters) => this.Send(string.Format(format, parameters));
+		public virtual void Send(string format, params object?[] parameters) => this.Send(string.Format(format, parameters));
 
 		/// <summary>Removes mIRC formatting codes from a string.</summary>
 		/// <param name="message">The string to strip.</param>
