@@ -75,7 +75,7 @@ namespace AnIRC {
 		protected AsyncRequest(IDictionary<string, bool> replies, IList<string?>? parameters) {
 			this.RepliesSource = replies ?? throw new ArgumentNullException(nameof(replies));
 			this.Replies = new ReadOnlyDictionary<string, bool>(replies);
-			this.ParametersSource = parameters ?? throw new ArgumentNullException(nameof(parameters));
+			this.ParametersSource = parameters;
 			this.Parameters = parameters != null ? new ReadOnlyCollection<string?>(parameters) : null;
 		}
 
