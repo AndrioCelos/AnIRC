@@ -122,7 +122,7 @@ namespace AnIRC {
 					while (i < line.Length) {
 						if (line[i] == ':') {  // Trail
 							hasTrail = true;
-							parameters.Add(line[(i + 1)..]);
+							parameters.Add(line.Substring(i + 1));
 							break;
 						}
 

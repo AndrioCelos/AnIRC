@@ -122,8 +122,12 @@ namespace AnIRC {
 		}
 
 		/// <summary>Returns a value indicating whether this user is away and the away message if applicable.</summary>
+#if NETSTANDARD2_1
 		public bool IsAway([MaybeNullWhen(false)] out string message) {
-			message = this.awayReason;
+#else
+		public bool IsAway(out string message) {
+#endif
+			message = this.awayReason!;
 			return this.awayReason != null;
 		}
 

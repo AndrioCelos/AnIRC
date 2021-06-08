@@ -472,7 +472,7 @@ namespace AnIRC {
 						foreach (var token in line.Parameters[2].Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)) {
 							for (int i = 0; i < token.Length; ++i) {
 								if (this.client.Extensions.ChannelTypes.Contains(token[i])) {
-									this.channels.Add(token[i..], ChannelStatus.FromPrefix(this.client, token.Take(i)));
+									this.channels.Add(token.Substring(i), ChannelStatus.FromPrefix(this.client, token.Take(i)));
 									break;
 								}
 							}
@@ -543,7 +543,7 @@ namespace AnIRC {
 					if (line.Parameters[1].Length >= 2 && line.Parameters[1].StartsWith("\u0001") && line.Parameters[1].EndsWith("\u0001") && line.Prefix is not null &&
 						this.client.CaseMappingComparer.Equals(Hostmask.GetNickname(line.Prefix), this.target) &&
 						this.client.CaseMappingComparer.Equals(line.Parameters[0], this.client.Me.Nickname)) {
-						var fields = line.Parameters[1][1..^1].Split(new[] { ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
+						var fields = line.Parameters[1].Trim('\u0001').Split(new[] { ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
 						if (this.request.Equals(fields[0], StringComparison.InvariantCultureIgnoreCase)) {
 							this.TaskSource.SetResult(fields.Length >= 2 ? fields[1] : null);
 							final = true;
@@ -613,7 +613,7 @@ namespace AnIRC {
 		/// <summary>Returns the error reply that was received.</summary>
 		public IrcLine Line { get; }
 
-		public AsyncRequestErrorException(IrcLine line) : base(line.Parameters[^1]) => this.Line = line ?? throw new ArgumentNullException(nameof(line));
+		public AsyncRequestErrorException(IrcLine line) : base(line.Parameters[line.Parameters.Length - 1]) => this.Line = line ?? throw new ArgumentNullException(nameof(line));
 	}
 
 	/// <summary>

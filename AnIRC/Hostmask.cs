@@ -40,7 +40,7 @@ namespace AnIRC {
 			++pos;
 
 			var pos2 = mask.IndexOf('@', pos);
-			return pos2 < 0 ? mask[pos..] : mask[pos..pos2];
+			return pos2 < 0 ? mask.Substring(pos) : mask.Substring(pos, pos2 - pos);
 		}
 
 		/// <summary>Returns the host part of the specified hostmask.</summary>
@@ -50,7 +50,7 @@ namespace AnIRC {
 			++pos;
 
 			pos = mask.IndexOf('@', pos);
-			return pos < 0 ? "*" : mask[(pos + 1)..];
+			return pos < 0 ? "*" : mask.Substring(pos + 1);
 		}
 	}
 }

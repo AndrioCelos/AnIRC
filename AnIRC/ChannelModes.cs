@@ -37,13 +37,13 @@ namespace AnIRC {
 			if (typeB != null) foreach (var mode in typeB) this.modes[mode] = 'B';
 			if (typeC != null) foreach (var mode in typeC) this.modes[mode] = 'C';
 			if (typeD != null) foreach (var mode in typeD) this.modes[mode] = 'D';
-			if (status != null)
-				this.SetStatusModes(status);
-			else
+			if (status != null) {
+				this.Status = new(status.ToArray());
+				foreach (var mode in status) this.modes[mode] = 'S';
+			} else
 				this.Status = new ReadOnlyCollection<char>(Array.Empty<char>());
 		}
 
-		[MemberNotNull(nameof(Status))]
 		internal void SetStatusModes(IEnumerable<char> modes) {
 			if (this.Status != null) foreach (var mode in this.Status) this.modes.Remove(mode);
 			this.Status = new(modes.ToArray());

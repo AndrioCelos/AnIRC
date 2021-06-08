@@ -46,7 +46,11 @@ namespace AnIRC {
 		/// <summary>Attempts to get the <see cref="T"/> with the specified name and returns a value indicating whether it was found.</summary>
 		/// <param name="name">The name to search for.</param>
 		/// <param name="value">When this method returns, contains the <see cref="T"/> searched for, or null if no such <see cref="T"/> is in the list.</param>
+#if NETSTANDARD2_1
 		public bool TryGetValue(string name, [MaybeNullWhen(false)] out T value) => this.Dictionary.TryGetValue(name, out value);
+#else
+		public bool TryGetValue(string name, out T value) => this.Dictionary.TryGetValue(name, out value);
+#endif
 
 		/// <summary>Returns an enumerator that enumerates the <see cref="T"/>s in this list in an undefined order.</summary>
 		public IEnumerator<T> GetEnumerator() => this.Dictionary.Values.GetEnumerator();

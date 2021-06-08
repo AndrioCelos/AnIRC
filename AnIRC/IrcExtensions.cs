@@ -340,7 +340,7 @@ namespace AnIRC {
 			var builder = new StringBuilder(value.Length);
 			do {
 				if (pos != pos2)
-					builder.Append(value[pos2..pos]);
+					builder.Append(value.Substring(pos2, pos - pos2));
 				if (pos > value.Length - 4) continue;
 
 				var bytes = new List<byte>();
@@ -378,7 +378,7 @@ namespace AnIRC {
 			} while (pos != -1);
 
 			if (pos != pos2)
-				builder.Append(value[pos2..pos]);
+				builder.Append(value.Substring(pos2, pos - pos2));
 
 			return builder.ToString();
 		}

@@ -574,7 +574,6 @@ namespace AnIRC {
 		}
 
 		/// <summary>Connects and logs in to an IRC network.</summary>
-		[MemberNotNull(nameof(Address), nameof(tcpClient))]
 		public virtual void Connect(string host, int port) {
 			if (this.RequireSaslAuthentication && (this.SaslUsername == null || this.SaslPassword == null))
 				throw new InvalidOperationException("SASL authentication is required, but no credentials are given.");
@@ -592,7 +591,6 @@ namespace AnIRC {
 			this.pinged = false;
 		}
 		/// <summary>Connects and logs in to an IRC network.</summary>
-		[MemberNotNull(nameof(Address), nameof(tcpClient))]
 		public virtual void Connect(IPAddress ip, int port) {
 			this.disconnectReason = 0;
 			this.accountKnown = false;
@@ -1128,7 +1126,7 @@ namespace AnIRC {
 						if (breakingCharacters.Contains(message[pos])) break;
 					}
 
-					string part2 = message[messageStart..pos];
+					string part2 = message.Substring(messageStart, pos - messageStart);
 
 					// Skip repeated breaking characters.
 					for (++pos; pos < message.Length; ++pos) {
@@ -1140,7 +1138,7 @@ namespace AnIRC {
 						if (part == null) {
 							// If a single word exceeds the limit, we must break it up.
 							for (pos = messageStart + 1; pos < message.Length; ++pos) {
-								part2 = message[messageStart..pos];
+								part2 = message.Substring(messageStart, pos - messageStart);
 								if (encoding.GetByteCount(part2) > maxLength) break;
 								part = part2;
 							}

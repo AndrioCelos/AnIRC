@@ -89,7 +89,7 @@ namespace AnIRC {
 					}
 
 					if (key.StartsWith("-"))
-						client.Extensions.Remove(key[1..]);
+						client.Extensions.Remove(key.Substring(1));
 					else
 						client.Extensions[key] = value;
 				}
@@ -340,7 +340,7 @@ namespace AnIRC {
 							// Some IRC servers use = to prefix +s channels to opers.
 							// TODO: Find a better way to distinguish prefixes. Some networks allow wacky characters like '$' in nicknames.
 							if (c != '=' && !client.Extensions.StatusPrefix.ContainsKey(c)) {
-								var user = client.Users.Get(name[i..], true);
+								var user = client.Users.Get(name.Substring(i), true);
 								// client.Users.Get will update the user with the hostmask from userhost-in-names, if present.
 								if (knownChannel) {
 									if (!user.Channels.Contains(channel)) user.Channels.Add(channel);
@@ -745,8 +745,8 @@ namespace AnIRC {
 									int pos = field.IndexOf('=', i);
 
 									var cap = pos < 0
-										? new IrcCapability(field[i..], sticky, ackRequired)
-										: new IrcCapability(field[i..pos], field[(pos + 1)..], sticky, ackRequired);
+										? new IrcCapability(field.Substring(i), sticky, ackRequired)
+										: new IrcCapability(field.Substring(i, pos - i), field.Substring(pos + 1), sticky, ackRequired);
 									if (!client.SupportedCapabilities.ContainsKey(cap.Name)) {
 										client.supportedCapabilities.Add(cap.Name, cap);
 										newCapabilities.Add(cap.Name, cap);
@@ -787,7 +787,7 @@ namespace AnIRC {
 							} else if (field[i] == '=') {
 							} else if (field[i] == '~') {
 							} else {
-								var capName = field[i..];
+								var capName = field.Substring(i);
 								if (remove) {
 									client.enabledCapabilities.Remove(capName);
 								}
@@ -993,7 +993,7 @@ namespace AnIRC {
 
 			if (client.IsChannel(line.Parameters[0])) {
 				// It's a channel message.
-				if (line.Parameters[1].Length > 1 && line.Parameters[1].StartsWith('\u0001') && line.Parameters[1].EndsWith('\u0001')) {
+				if (line.Parameters[1].Length > 1 && line.Parameters[1].StartsWith("\u0001") && line.Parameters[1].EndsWith("\u0001")) {
 					string ctcpMessage = line.Parameters[1].Trim(new char[] { '\u0001' });
 					string[] fields = ctcpMessage.Split(new char[] { ' ' }, 2);
 					if (fields[0].Equals("ACTION", StringComparison.OrdinalIgnoreCase)) {
@@ -1006,7 +1006,7 @@ namespace AnIRC {
 				}
 			} else {
 				// It's a private message.
-				if (line.Parameters[1].Length > 1 && line.Parameters[1].StartsWith('\u0001') && line.Parameters[1].EndsWith('\u0001')) {
+				if (line.Parameters[1].Length > 1 && line.Parameters[1].StartsWith("\u0001") && line.Parameters[1].EndsWith("\u0001")) {
 					string CTCPMessage = line.Parameters[1].Trim(new char[] { '\u0001' });
 					string[] fields = CTCPMessage.Split(new char[] { ' ' }, 2);
 					if (fields[0].Equals("ACTION", StringComparison.OrdinalIgnoreCase)) {
