@@ -621,8 +621,7 @@ namespace AnIRC {
 				this.sslStream = new SslStream(this.tcpClient.GetStream(), false, this.ValidateCertificateInternal, null);
 
 				try {
-					const SslProtocols protocols = SslProtocols.Tls12 | SslProtocols.Tls11 | SslProtocols.Tls;  // SSLv3 has gone to the dogs.
-					this.sslStream.AuthenticateAsClient(this.Address!, null, protocols, true);
+					this.sslStream.AuthenticateAsClient(this.Address!, null, SslProtocols.None, true);
 
 					this.reader = new StreamReader(this.sslStream, this.Encoding);
 					this.writer = new StreamWriter(this.sslStream, this.Encoding);
@@ -636,12 +635,14 @@ namespace AnIRC {
 
 					this.Register();
 				} catch (AuthenticationException ex) {
+					this.pingTimer.Stop();
 					this.OnException(new ExceptionEventArgs(ex, true));
 					this.tcpClient.Close();
 					this.OnDisconnected(new DisconnectEventArgs(DisconnectReason.SslAuthenticationFailed, ex));
 					this.State = IrcClientState.Disconnected;
 					return;
 				} catch (IOException ex) {
+					this.pingTimer.Stop();
 					this.OnException(new ExceptionEventArgs(ex, true));
 					this.tcpClient.Close();
 					this.OnDisconnected(new DisconnectEventArgs(DisconnectReason.Exception, ex));
