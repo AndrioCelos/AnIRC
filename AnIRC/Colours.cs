@@ -7,6 +7,7 @@ namespace AnIRC {
 	public static class Colours	{
 		/// <summary>The colour code.</summary>
 		public const char ColourCode      = '\u0003';
+		public const char RgbColourCode   = '\u0004';
 		public const string White         = "\u000300";
 		public const string Black         = "\u000301";
 		public const string DarkBlue      = "\u000302";
@@ -24,9 +25,10 @@ namespace AnIRC {
 		public const string DarkGray      = "\u000314";
 		public const string Gray          = "\u000315";
 		public const char Bold          = '\u0002';
-		public const char Italic        = '\u001C';
+		public const char Italic        = '\u001D';
 		public const char Underline     = '\u001F';
-		public const char Strikethrough = '\u0013';
+		public const char Strikethrough = '\u001E';
+		public const char Monospace     = '\u0011';
 		/// <summary>The CTCP code.</summary>
 		public const char CTCP          = '\u0001';
 		/// <summary>The clear code.</summary>
