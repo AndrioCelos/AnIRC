@@ -1,5 +1,5 @@
-﻿namespace AnIRC {
-	public interface INamedEntity {
-		public string Name { get; }
-	}
+﻿namespace AnIRC;
+
+public interface INamedEntity {
+	public string Name { get; }
 }

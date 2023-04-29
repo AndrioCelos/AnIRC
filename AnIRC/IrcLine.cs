@@ -1,236 +1,356 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 using System.Text;
 
-namespace AnIRC {
-	/// <summary>
-	/// Represents an IRC message, and provides methods to help parse them.
-	/// </summary>
-	public class IrcLine {
-		/// <summary>A dictionary of IRCv3 tags in this message, or null if no tag list is present.</summary>
-		public Dictionary<string, string?>? Tags { get; }
-		/// <summary>The prefix or sender of this message, or null if no prefix is present.</summary>
-		public string? Prefix;
-		/// <summary>The message or command.</summary>
-		public string Message;
-		/// <summary>The list of parameters in this message.</summary>
-		public string[] Parameters;
-		/// <summary>Indicates whether the final parameter had a trail prefix.</summary>
-		public bool HasTrail;
+namespace AnIRC;
 
-		public IrcLine(string message, string[] parameters) {
-			this.Message = message;
-			this.Parameters = parameters;
+/// <summary>
+/// Represents an IRC message, and provides methods to help parse them.
+/// </summary>
+public class IrcLine {
+	private static readonly IReadOnlyDictionary<string, string> EmptyTags = new ReadOnlyDictionary<string, string>(new Dictionary<string, string>());
+
+	[ThreadStatic]
+	private static List<string>? cacheParameters;
+	[ThreadStatic]
+	private static StringBuilder? cacheStringBuilder;
+
+	/// <summary>A dictionary of IRCv3 tags in this message, or an empty dictionary if no tags are present.</summary>
+	public IReadOnlyDictionary<string, string> Tags { get; }
+	/// <summary>The source prefix of this message, or null if no prefix is present.</summary>
+	public string? Source { get; }
+	/// <summary>The message or command.</summary>
+	public string Message { get; }
+	/// <summary>The list of parameters in this message.</summary>
+	public IReadOnlyList<string> Parameters { get; }
+
+	public IrcLine(string message, params string[]? parameters) : this(null, null, message, (IEnumerable<string>?) parameters) { }
+	public IrcLine(string message, IEnumerable<string>? parameters) : this(null, null, message, parameters) { }
+	public IrcLine(IEnumerable<KeyValuePair<string, string>>? tags, string message, params string[]? parameters) : this(tags, null, message, parameters) { }
+	public IrcLine(IEnumerable<KeyValuePair<string, string>>? tags, string message, IEnumerable<string>? parameters) : this(tags, null, message, parameters) { }
+		
+	public IrcLine(IEnumerable<KeyValuePair<string, string>>? tags, string? source, string message, IEnumerable<string>? parameters)
+		: this(tags is not null
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+			  ? new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(tags.Select(e => new KeyValuePair<string, string>(e.Key, e.Value ?? ""))))
+#else
+			  ? new ReadOnlyDictionary<string, string>(CreateTags(tags))
+#endif
+			  : EmptyTags,
+			  source, message, parameters?.ToArray() ?? Array.Empty<string>()) {
+		if (parameters is not null) {
+			var trail = false;
+			foreach (var parameter in parameters) {
+				if (parameter == "" || parameter[0] == ':' || parameter.Contains(' ')) {
+					if (trail) throw new ArgumentException("More than one trailing parameter was found.", nameof(parameters));
+					trail = true;
+				}
+			}
 		}
-		public IrcLine(Dictionary<string, string?>? tags, string? prefix, string command, string[] parameters, bool hasTrail) {
-			this.Tags = tags;
-			this.Prefix = prefix;
-			this.Message = command;
-			this.Parameters = parameters;
-			this.HasTrail = hasTrail;
-		}
+	}
 
-		public static IrcLine Parse(string line) => IrcLine.Parse(line, true);
-		public static IrcLine Parse(string line, bool allowTags) {
-			if (line == null) throw new ArgumentNullException(nameof(line));
-			if (line.Length == 0) return new IrcLine(null, null, "", Array.Empty<string>(), false);
+	private IrcLine(IReadOnlyDictionary<string, string> tags, string? sourcd, string message, IReadOnlyList<string> parameters) {
+		this.Tags = tags;
+		this.Source = sourcd;
+		this.Message = message;
+		this.Parameters = parameters;
+	}
 
-			Dictionary<string, string?>? tags = null; string? prefix = null, command = null;
-			var parameters = new List<string>();
-			bool hasTrail = false;
+	public string? GetParameter(int index) => this.Parameters.Count > index ? this.Parameters[index] : null;
+	public string GetParameter(int index, string defaultValue) => this.GetParameter(index) ?? defaultValue;
 
-			var builder = new StringBuilder(32);
-			int i = 0; char c = line[0];
+#if !(NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER)
+	private static Dictionary<string, string> CreateTags(IEnumerable<KeyValuePair<string, string>> tags) {
+		var dictionary = new Dictionary<string, string>();
+		foreach (var pair in tags) dictionary.Add(pair.Key, pair.Value);
+		return dictionary;
+	}
+#endif
 
-			if (allowTags && c == '@') {
-				// The line has IRCv3.2 tags.
-				tags = new Dictionary<string, string?>();
-				for (i = 1; i < line.Length; ++i) {
-					string tag; string? value;
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+	public static IrcLine FromBinary(ReadOnlySpan<byte> bytes, Encoding encoding) {
+		var i = 0;
+		var endIndex = bytes.Length;
+#else
+	private static IrcLine FromBinaryInternal(byte[] bytes, int startIndex, int endIndex, Encoding encoding) {
+		if (bytes is null) throw new ArgumentNullException(nameof(bytes));
+		var i = startIndex;
+#endif
+		if (encoding is null) throw new ArgumentNullException(nameof(encoding));
 
-					builder.Clear();
-					for ( ; i < line.Length; ++i) {
-						c = line[i];
-						if (c is '=' or ';' or ' ') break;
-						builder.Append(c);
+		cacheParameters ??= new(16);
+
+		int j;
+		try {
+			IReadOnlyDictionary<string, string> tagsReadOnly;
+			if (bytes[i] == '@') {
+				// IRCv3 tags (always UTF-8): https://ircv3.net/specs/extensions/message-tags
+				var tags = new Dictionary<string, string>();
+				do {
+					i++;
+					string? value;
+
+					for (j = i; j < endIndex; j++) {
+						if (bytes[j] is (byte) '=' or (byte) ';' or (byte) ' ') break;
 					}
-					tag = builder.ToString();
+					if (j == i) continue;
 
-					if (i < line.Length && c == '=') {
-						builder.Clear();
-						for (++i; i < line.Length; ++i) {
-							c = line[i];
-							if (c is ';' or ' ') break;
-							if (c == '\\') {  // Escape sequence
-								if (++i == line.Length) {
-									builder.Append('\\');
-									break;
-								}
-								c = line[i];
-								switch (c) {
-									case ':':
-										builder.Append(';'); break;
-									case 's':
-										builder.Append(' '); break;
-									case '\\':
-										builder.Append('\\'); break;
-									case 'r':
-										builder.Append('\r'); break;
-									case 'n':
-										builder.Append('\n'); break;
-									default:
-										builder.Append(c); break;
-								}
-							} else
-								builder.Append(c);
+					var tag = GetString(Encoding.UTF8, bytes, i, j);
+
+					if (bytes[j] == '=') {
+						i = j + 1;
+						for (j = i; j < endIndex; j++) {
+							if (bytes[j] is (byte) ';' or (byte) ' ') break;
 						}
-						value = builder.ToString();
+						value = UnescapeTagValue(GetString(Encoding.UTF8, bytes, i, j));
 					} else
-						value = null;
+						value = "";
 
 					tags.Add(tag, value);
-					if (i >= line.Length || c == ' ') break;
+					i = j;
+				} while (bytes[i] != ' ');
+				do { i++; } while (bytes[i] == ' ');
+				tagsReadOnly = new ReadOnlyDictionary<string, string>(tags);
+			} else
+				tagsReadOnly = EmptyTags;
+
+			string? prefix;
+			if (bytes[i] == ':') {
+				for (j = i + 1; j < endIndex; j++) {
+					if (bytes[j] == ' ') break;
 				}
-				++i;
+				prefix = GetString(encoding, bytes, i + 1, j);
+				i = j;
+				do { i++; } while (bytes[i] == ' ');
+			} else
+				prefix = null;
+
+			for (j = i; j < endIndex; j++) {
+				if (bytes[j] == ' ') break;
+			}
+			var message = GetString(Encoding.UTF8, bytes, i, j);
+			i = j;
+
+			while (true) {
+				do { i++; } while (i < endIndex && bytes[i] == ' ');
+				if (i >= endIndex) break;
+
+				if (bytes[i] == ':') {
+					// Trailing parameter: include all text to the end of the line.
+					cacheParameters.Add(GetString(encoding, bytes, i + 1, endIndex));
+					break;
+				} else {
+					for (j = i + 1; j < endIndex; j++) {
+						if (bytes[j] == ' ') break;
+					}
+					cacheParameters.Add(GetString(encoding, bytes, i, j));
+				}
+				i = j;
 			}
 
-			if (i < line.Length) {
-				if (line[i] == ':') {  // Prefix
-					builder.Clear();
-					++i;
-					for (; i < line.Length; ++i) {
-						c = line[i];
-						if (c == ' ') break;
-						builder.Append(c);
-					}
-					prefix = builder.ToString();
-					++i;
-				}
+			var parameters = cacheParameters.ToArray();
+			cacheParameters.Clear();
+			cacheParameters.Capacity = 16;
+			return new IrcLine(tagsReadOnly, prefix, message, parameters);
+		} catch (IndexOutOfRangeException) {
+			throw new FormatException("No message type was found.");
+		}
+	}
+	public static IrcLine FromBinary(byte[] buffer, int startIndex, int length, Encoding encoding)
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+		=> FromBinary(buffer.AsSpan(startIndex, length), encoding);
+#else
+		=> FromBinaryInternal(buffer, startIndex, startIndex + length, encoding);
+#endif
+	public static IrcLine FromBinary(byte[] buffer, Range range, Encoding encoding)
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+		=> FromBinary(buffer.AsSpan(range), encoding);
+#else
+		=> FromBinaryInternal(buffer, range.Start.GetOffset(buffer.Length), range.End.GetOffset(buffer.Length), encoding);
+#endif
 
-				// Numeric
-				if (i < line.Length) {
-					builder.Clear();
-					for (; i < line.Length; ++i) {
-						c = line[i];
-						if (c == ' ') break;
-						builder.Append(c);
-					}
-					command = builder.ToString();
-					++i;
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+	private static string GetString(Encoding encoding, ReadOnlySpan<byte> bytes, int startIndex, int endIndex)
+		=> encoding.GetString(bytes[startIndex..endIndex]);
+#else
+	private static string GetString(Encoding encoding, byte[] bytes, int startIndex, int endIndex)
+		=> encoding.GetString(bytes, startIndex, endIndex - startIndex);
+#endif
 
-					// Parameters
-					while (i < line.Length) {
-						if (line[i] == ':') {  // Trail
-							hasTrail = true;
-							parameters.Add(line.Substring(i + 1));
-							break;
+	public static IrcLine Parse(string s) {
+		var i = 0;
+		var endIndex = s.Length;
+		int j;
+
+		cacheParameters ??= new(16);
+
+		try {
+			IReadOnlyDictionary<string, string> tagsReadOnly;
+			if (s[i] == '@') {
+				// IRCv3 tags (always UTF-8): https://ircv3.net/specs/extensions/message-tags
+				var tags = new Dictionary<string, string>();
+				do {
+					i++;
+					string? value;
+
+					for (j = i; j < endIndex; j++) {
+						if (s[j] is '=' or ';' or ' ') break;
+					}
+					if (j == i) continue;
+
+					var tag = s[i..j];
+
+					if (s[j] == '=') {
+						i = j + 1;
+						for (j = i; j < endIndex; j++) {
+							if (s[j] is ';' or ' ') break;
 						}
+						value = UnescapeTagValue(s[i..j]);
+					} else
+						value = "";
 
-						builder.Clear();
-						for (; i < line.Length; ++i) {
-							c = line[i];
-							if (c == ' ') break;
-							builder.Append(c);
-						}
-						parameters.Add(builder.ToString());
-						++i;
+					tags.Add(tag, value);
+					i = j;
+				} while (s[i] != ' ');
+				do { i++; } while (s[i] == ' ');
+				tagsReadOnly = new ReadOnlyDictionary<string, string>(tags);
+			} else
+				tagsReadOnly = EmptyTags;
+
+			string? prefix;
+			if (s[i] == ':') {
+				for (j = i + 1; j < endIndex; j++) {
+					if (s[j] == ' ') break;
+				}
+				prefix = s[(i + 1)..j];
+				i = j;
+				do { i++; } while (s[i] == ' ');
+			} else
+				prefix = null;
+
+			for (j = i; j < endIndex; j++) {
+				if (s[j] == ' ') break;
+			}
+			var message = s[i..j];
+			i = j;
+
+			while (true) {
+				do { i++; } while (i < endIndex && s[i] == ' ');
+				if (i >= endIndex) break;
+
+				if (s[i] == ':') {
+					// Trailing parameter: include all text to the end of the line.
+					cacheParameters.Add(s[(i + 1)..]);
+					break;
+				} else {
+					for (j = i + 1; j < endIndex; j++) {
+						if (s[j] == ' ') break;
 					}
+					cacheParameters.Add(s[i..j]);
+				}
+				i = j;
+			}
+
+			var parameters = cacheParameters.ToArray();
+			cacheParameters.Clear();
+			cacheParameters.Capacity = 16;
+			return new IrcLine(tagsReadOnly, prefix, message, parameters);
+		} catch (IndexOutOfRangeException) {
+			throw new FormatException("No message type was found.");
+		}
+	}
+
+	internal static string EscapeTag(string value) {
+		cacheStringBuilder ??= new(1024);
+		cacheStringBuilder.Clear();
+		EscapeTag(value, cacheStringBuilder);
+		var s = cacheStringBuilder.ToString();
+		cacheStringBuilder.Clear();
+		cacheStringBuilder.Capacity = 1024;
+		return s;
+	}
+	internal static void EscapeTag(string value, StringBuilder stringBuilder) {
+		foreach (var c in value) {
+			switch (c) {
+				case ';' : stringBuilder.Append(@"\:"); break;
+				case ' ' : stringBuilder.Append(@"\s"); break;
+				case '\\': stringBuilder.Append(@"\\"); break;
+				case '\r': stringBuilder.Append(@"\r"); break;
+				case '\n': stringBuilder.Append(@"\n"); break;
+				default  : stringBuilder.Append(c); break;
+			}
+		}
+	}
+
+	private static string UnescapeTagValue(string s) {
+		var pos2 = s.IndexOf('\\');
+		if (pos2 < 0) return s;
+
+		var pos = 0;
+		cacheStringBuilder ??= new(1024);
+		cacheStringBuilder.Clear();
+		do {
+			cacheStringBuilder.Append(s, pos, pos2 - pos);
+			pos2++;
+			if (pos2 >= s.Length) {
+				pos = pos2;
+				break;  // Lone trailing \ produces nothing.
+			}
+			cacheStringBuilder.Append(s[pos2] switch { ':' => ';', 's' => ' ', 'r' => '\r', 'n' => '\n', _ => s[pos2] });
+			pos = pos2 + 1;
+			pos2 = s.IndexOf('\\', pos);
+		} while (pos2 >= 0);
+		cacheStringBuilder.Append(s, pos, s.Length - pos);
+
+		var result = cacheStringBuilder.ToString();
+		cacheStringBuilder.Clear();
+		cacheStringBuilder.Capacity = 1024;
+		return result.ToString();
+	}
+
+	/// <summary>Returns the string representation of this <see cref="IrcLine"/>, as specified by the IRC protocol.</summary>
+	public override string ToString() {
+		cacheStringBuilder ??= new(1024);
+		cacheStringBuilder.Clear();
+
+		if (this.Tags.Count > 0) {
+			var anyTags = false;
+			foreach (var tag in this.Tags) {
+				if (anyTags)
+					cacheStringBuilder.Append(';');
+				else {
+					cacheStringBuilder.Append('@');
+					anyTags = true;
+				}
+				cacheStringBuilder.Append(tag.Key);
+				if (!string.IsNullOrEmpty(tag.Value)) {
+					cacheStringBuilder.Append('=');
+					EscapeTag(tag.Value, cacheStringBuilder);
 				}
 			}
-
-			return new IrcLine(tags, prefix, command ?? "", parameters?.ToArray() ?? Array.Empty<string>(), hasTrail);
+			cacheStringBuilder.Append(' ');
 		}
 
-		/// <summary>Returns a new string from the specified string with certain characters escaped, for use as an IRCv3 tag value.</summary>
-		public static string EscapeTag(string value) {
-			var builder = new StringBuilder(value.Length + value.Length / 4);
-			foreach (char c in value) {
-				switch (c) {
-					case ';':
-						builder.Append(@"\:"); break;
-					case ' ':
-						builder.Append(@"\s"); break;
-					case '\\':
-						builder.Append(@"\\"); break;
-					case '\r':
-						builder.Append(@"\r"); break;
-					case '\n':
-						builder.Append(@"\n"); break;
-					default:
-						builder.Append(c); break;
-				}
-			}
-			return builder.ToString();
+		if (this.Source != null) {
+			cacheStringBuilder.Append(':');
+			cacheStringBuilder.Append(this.Source);
+			cacheStringBuilder.Append(' ');
 		}
 
-		/// <summary>Returns a new string from the specified string with IRCv3 tag escape codes parsed.</summary>
-		public static string UnescapeTag(string value) => UnescapeTag(value, false);
-		/// <summary>Returns a new string from the specified string with IRCv3 tag escape codes parsed.</summary>
-		/// <param name="strict">If true, this method will throw an exception if an invalid escape sequence is encountered instead of copying it verbatim.</param>
-		/// <exception cref="FormatException"><paramref name="strict"/> is true, and there is an invalid escape sequence in <paramref name="value"/>.</exception>
-		public static string UnescapeTag(string value, bool strict) {
-			var builder = new StringBuilder(value.Length);
+		cacheStringBuilder.Append(this.Message);
 
-			for (int i = 0; i < value.Length; ++i) {
-				char c = value[i];
-				if (c == '\\') {  // Escape sequence
-					if (++i == value.Length) {
-						if (strict) throw new FormatException("Incomplete escape sequence.");
-						builder.Append('\\');
-						break;
-					}
-					c = value[i];
-					switch (c) {
-						case ':':
-							builder.Append(';'); break;
-						case 's':
-							builder.Append(' '); break;
-						case '\\':
-							builder.Append('\\'); break;
-						case 'r':
-							builder.Append('\r'); break;
-						case 'n':
-							builder.Append('\n'); break;
-						default:
-							if (strict) throw new FormatException("Invalid escape sequence '\\" + c + "'.");
-							builder.Append(c); break;
-					}
-				} else
-					builder.Append(c);
-			}
-
-			return builder.ToString();
+		foreach (var parameter in this.Parameters) {
+			cacheStringBuilder.Append(' ');
+			if (parameter == "" || parameter[0] == ':' || parameter.Contains(' '))
+				cacheStringBuilder.Append(':');
+			cacheStringBuilder.Append(parameter);
 		}
 
-		/// <summary>Returns the string representation of this <see cref="IrcLine"/>, as specified by the IRC protocol.</summary>
-		public override string ToString() {
-			var builder = new StringBuilder(128);
-			if (this.Tags != null) {
-				builder.Append('@');
-				foreach (var tag in this.Tags) {
-					if (builder.Length != 1) builder.Append(';');
-					builder.Append(tag.Key);
-					if (tag.Value != null) {
-						builder.Append('=');
-						builder.Append(EscapeTag(tag.Value));
-					}
-				}
-				builder.Append(' ');
-			}
-			if (this.Prefix != null) {
-				builder.Append(':');
-				builder.Append(this.Prefix);
-				builder.Append(' ');
-			}
-			builder.Append(this.Message);
-
-			for (int i = 0; i < this.Parameters.Length; ++i) {
-				builder.Append(' ');
-				if (this.HasTrail && i == this.Parameters.Length - 1) builder.Append(':');
-				builder.Append(this.Parameters[i]);
-			}
-
-			return builder.ToString();
-		}
+		var result = cacheStringBuilder.ToString();
+		cacheStringBuilder.Clear();
+		cacheStringBuilder.Capacity = 1024;
+		return result.ToString();
 	}
 }

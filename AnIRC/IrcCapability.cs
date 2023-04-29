@@ -1,24 +1,19 @@
-﻿namespace AnIRC {
-	/// <summary>
-	/// Represents an IRCv3 capability.
-	/// </summary>
-	public class IrcCapability {
-		public string Name { get; }
-		public string? Parameter { get; }
-		public bool Sticky { get; }
-		public bool AckRequired { get; }
+﻿namespace AnIRC;
 
-		public IrcCapability(string name) : this(name, null, false, false) { }
-		public IrcCapability(string name, string? parameter) : this(name, parameter, false, false) { }
-		public IrcCapability(string name, bool sticky, bool ackRequired) : this(name, null, sticky, ackRequired) { }
-		public IrcCapability(string name, string? parameter, bool sticky, bool ackRequired) {
-			this.Name = name;
-			this.Parameter = parameter;
-			this.Sticky = sticky;
-			this.AckRequired = ackRequired;
-		}
+/// <summary>
+/// Represents an IRCv3 capability.
+/// </summary>
+public class IrcCapability : INamedEntity {
+	public string Name { get; }
+	public string? Parameter { get; }
 
-		public override int GetHashCode() => this.Name.GetHashCode();
-		public override bool Equals(object? other) => other is IrcCapability capability && this.Name == capability.Name;
+	public IrcCapability(string name) : this(name, null) { }
+	public IrcCapability(string name, string? parameter) {
+		this.Name = name;
+		this.Parameter = parameter;
 	}
+
+	public override int GetHashCode() => this.Name.GetHashCode();
+	public override bool Equals(object? other) => other is IrcCapability capability && this.Name == capability.Name;
+	public override string? ToString() => this.Parameter is not null ? $"{{{this.Name}={this.Parameter}}}" : $"{{{this.Name}}}";
 }
