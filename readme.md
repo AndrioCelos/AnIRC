@@ -19,7 +19,7 @@ Features
 Example usage
 -------------
 
-```
+```Csharp
 IrcClient client;
 
 void Initialize() {
