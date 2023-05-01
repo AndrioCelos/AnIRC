@@ -38,10 +38,10 @@ public class IrcUserCollection : IrcNamedEntityCollection<IrcUser> {
 			if (account is not null) user.Account = account == "*" ? null : account;
 			if (fullName is not null) user.FullName = fullName;
 		} else {
-			user = new IrcUser(this.Client, nickname, ident ?? "*", host ?? "*", account == "*" ? null : account, fullName ?? nickname) { IsMonitored = monitoring };
+			user = new IrcUser(this.Client!, nickname, ident ?? "*", host ?? "*", account == "*" ? null : account, fullName ?? nickname) { IsMonitored = monitoring };
 			if (add) {
 				this.Add(user);
-				this.Client.OnUserAppeared(new(user));
+				this.Client!.OnUserAppeared(new(user));
 			}
 		}
 		if (tags is not null && tags.Count != 0) {
@@ -50,4 +50,3 @@ public class IrcUserCollection : IrcNamedEntityCollection<IrcUser> {
 		return user;
 	}
 }
-
